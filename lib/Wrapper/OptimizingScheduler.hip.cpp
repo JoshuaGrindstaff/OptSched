@@ -282,23 +282,34 @@ void ScheduleDAGOptSched::initSchedulers() {
   SchedPasses.push_back(OptSchedBalanced);
 }
 
-void ScheduleEvaluator::recordSchedule() {
-  Unsched.clear();
-  Unsched.reserve(DAG.NumRegionInstrs);
-  // Record the original order of the instructions.
+void ScheduleEvaluator::recordSchedule(int schedIndex) {
+  schedCount++;
+  if (schedIndex >= storedSchedules.size())
+    storedSchedules.resize(schedIndex + 1);
+
+  storedSchedules[schedIndex].clear();
+  storedSchedules[schedIndex].reserve(DAG.NumRegionInstrs);
+
   for (auto &MI : DAG)
-    Unsched.push_back(&MI);
+    storedSchedules[schedIndex].push_back(&MI);
 }
 
-void ScheduleEvaluator::revertScheduling() {
+// revert to a previous schedule
+// schedIndex 0 is the previous schedule, 1 is the schedule at highest occupancy
+void ScheduleEvaluator::revertScheduling(int schedIndex) {
   DAG.RegionEnd = DAG.RegionBegin;
   int SkippedDebugInstr = 0;
-  for (MachineInstr *MI : Unsched) {
+
+  // Logger::Info("Reverting Scheduling Number of Scheds: %d, index: %d, size is %d", schedCount, schedIndex, storedSchedules.size());
+  if (schedIndex >= schedCount) {
+    schedIndex = schedCount - 1;
+  }
+
+  for (MachineInstr *MI : storedSchedules[schedIndex]) {
     if (MI->isDebugInstr()) {
       ++SkippedDebugInstr;
       continue;
     }
-
     if (MI->getIterator() != DAG.RegionEnd) {
       DAG.BB->remove(MI);
       DAG.BB->insert(DAG.RegionEnd, MI);
@@ -333,12 +344,12 @@ void ScheduleEvaluator::revertScheduling() {
   while (SkippedDebugInstr-- > 0)
     ++DAG.RegionEnd;
 
-  // If Unsched.front() instruction is a debug instruction, this will actually
+  // If storedSchedules[schedIndex].front() instruction is a debug instruction, this will actually
   // shrink the region since we moved all debug instructions to the end of the
   // block. Find the first instruction that is not a debug instruction.
-  DAG.RegionBegin = Unsched.front()->getIterator();
+  DAG.RegionBegin = storedSchedules[schedIndex].front()->getIterator();
   if (DAG.RegionBegin->isDebugInstr()) {
-    for (MachineInstr *MI : Unsched) {
+    for (MachineInstr *MI : storedSchedules[schedIndex]) {
       if (MI->isDebugInstr())
         continue;
       DAG.RegionBegin = MI->getIterator();
@@ -352,30 +363,43 @@ void ScheduleEvaluator::revertScheduling() {
 }
 
 void ScheduleEvaluator::calculateRPBefore() {
-  RPBefore = DAG.getRealRegPressure();
+  SchedRP.push_back(DAG.getRealRegPressure());
   #if 1
   const GCNSubtarget &ST = DAG.MF.getSubtarget<GCNSubtarget>();
-  dbgs() << "RPBefore: " << RPBefore.getOccupancy(ST) << '\n';
-  //RPBefore.dump();
+  dbgs() << "RPBefore: " << SchedRP[0].getOccupancy(ST) << '\n';
+  //SchedRP[0].dump();
   #endif
 }
 
-void ScheduleEvaluator::calculateRPAfter() {
-  RPAfter = DAG.getRealRegPressure();
+void ScheduleEvaluator::calculateRPAfter(int schedIndex) {
+  SchedRP.push_back(DAG.getRealRegPressure());
   #if 1
   const GCNSubtarget &ST = DAG.MF.getSubtarget<GCNSubtarget>();
-  dbgs() << "RPAfter: " << RPAfter.getOccupancy(ST) << '\n';
-  //RPAfter.dump();
+  // dbgs() << "RPSched" << schedIndex << ": " << SchedRP[schedIndex].getOccupancy(ST) << '\n';
+  //SchedRP[schedIndex].dump();
   #endif
 }
 
-unsigned ScheduleEvaluator::getOccDifference() const {
+unsigned ScheduleEvaluator::getOccAtIndex(int schedIndex) const {
   const GCNSubtarget &ST = DAG.MF.getSubtarget<GCNSubtarget>();
-  return RPAfter.getOccupancy(ST) - RPBefore.getOccupancy(ST);
+  if (schedIndex >= storedSchedules.size()) {
+    return SchedRP.back().getOccupancy(ST);
+  }
+  return SchedRP[schedIndex].getOccupancy(ST);
 }
 
-int64_t ScheduleEvaluator::getILPDifference() const {
-  return ILPAfter - ILPBefore;
+int64_t ScheduleEvaluator::getILPAtIndex(int schedIndex) const {
+  if (schedIndex >= storedSchedules.size()) {
+    return SchedILP.back();
+  }
+  return SchedILP[schedIndex];
+}
+
+int64_t ScheduleEvaluator::getWeightedILPAtIndex(int schedIndex) const {
+  if (schedIndex >= storedSchedules.size()) {
+    return SchedILP.back() * Frequency;
+  }
+  return SchedILP[schedIndex] * Frequency;
 }
 
 #ifndef NDEBUG
@@ -460,35 +484,47 @@ ILPMetrics ScheduleEvaluator::calculateILP() const {
 
 void ScheduleEvaluator::calcualteILPBefore() {
   auto ILPInfo = calculateILP();
-  #if 1
+  #if 0
   dbgs() << "ILPBefore:\n";
   dbgs() << "Length: " << ILPInfo.getLength() << "\n";
   dbgs() << "Stalls: " << ILPInfo.getBubbles() << "\n";
   dbgs() << "Metric: " << ILPInfo.getMetric() << "\n";
   #endif
-  ILPBefore = ILPInfo.getLength();
+  SchedILP.push_back(ILPInfo.getLength());
 }
 
-void ScheduleEvaluator::claculateILPAfter() {
+void ScheduleEvaluator::calculateILPAfter(int schedIndex) {
   auto ILPInfo = calculateILP();
-  #if 1
-  dbgs() << "ILPAfter:\n";
+  #if 0
+  dbgs() << "ILPSched" << schedIndex << ":\n";
   dbgs() << "Length: " << ILPInfo.getLength() << "\n";
   dbgs() << "Stalls: " << ILPInfo.getBubbles() << "\n";
   dbgs() << "Metric: " << ILPInfo.getMetric() << "\n";
   #endif
-  ILPAfter = ILPInfo.getLength();
+  SchedILP.push_back(ILPInfo.getLength());
 }
 
 unsigned ScheduleEvaluator::getOccupancyBefore() const {
   const GCNSubtarget &ST = DAG.MF.getSubtarget<GCNSubtarget>();
-  return RPBefore.getOccupancy(ST);
+  return SchedRP[0].getOccupancy(ST);
 }
 
 GCNRegPressure ScheduleDAGOptSched::getRealRegPressure() const {
   GCNDownwardRPTracker RPTracker(*LIS);
   RPTracker.advance(begin(), end());
   return RPTracker.moveMaxPressure();
+}
+
+static void PrintSchedule(InstSchedule *schedule) {
+  printf("%d: ", schedule->GetCost());
+  InstCount instNum, cycleNum, slotNum;
+  instNum = schedule->GetFrstInst(cycleNum, slotNum);
+  while (instNum != INVALID_VALUE) {
+    printf("%d ", instNum);
+    instNum = schedule->GetNxtInst(cycleNum, slotNum);
+  }
+  printf("\n");
+  schedule->ResetInstIter();
 }
 
 // schedule called for each basic block
@@ -626,7 +662,7 @@ void ScheduleDAGOptSched::schedule() {
   // Revord MachineInstr order in the first pass for a possible revert if
   // scheduling makes things worse.
   if (!SecondPass) {
-    SchedEval.recordSchedule();
+    SchedEval.recordSchedule(0);
     SchedEval.calculateRPBefore();
     SchedEval.calcualteILPBefore();
   }
@@ -677,6 +713,7 @@ void ScheduleDAGOptSched::schedule() {
   InstCount NormHurstcCost = 0;
   InstCount HurstcSchedLngth = 0;
   InstSchedule *Sched = NULL;
+  std::vector<InstSchedule *> SchedsAtDiffOccupancies;
   FUNC_RESULT Rslt;
   bool FilterByPerp = schedIni.GetBool("FILTER_BY_PERP");
 
@@ -709,7 +746,8 @@ void ScheduleDAGOptSched::schedule() {
   Rslt = region->FindOptimalSchedule(CurrentRegionTimeout, CurrentLengthTimeout,
                                      IsEasy, NormBestCost, BestSchedLngth,
                                      NormHurstcCost, HurstcSchedLngth, Sched,
-                                     FilterByPerp, blocksToKeep(schedIni), depth);
+                                     FilterByPerp, blocksToKeep(schedIni), depth,
+                                     SchedsAtDiffOccupancies);
 
   if ((!(Rslt == RES_SUCCESS || Rslt == RES_TIMEOUT) || Sched == NULL)) {
     LLVM_DEBUG(
@@ -742,39 +780,80 @@ void ScheduleDAGOptSched::schedule() {
   CurrentTop = nextIfDebug(RegionBegin, RegionEnd);
   CurrentBottom = RegionEnd;
   InstCount cycle, slot;
-  for (InstCount i = Sched->GetFrstInst(cycle, slot); i != INVALID_VALUE;
-       i = Sched->GetNxtInst(cycle, slot)) {
-    // Skip artificial instrs.
-    if (i > static_cast<int>(SUnits.size()) - 1)
-      continue;
+  int schedIndex = 1;
+  if (SchedsAtDiffOccupancies.empty()) {
+    for (InstCount i = Sched->GetFrstInst(cycle, slot); i != INVALID_VALUE;
+        i = Sched->GetNxtInst(cycle, slot)) {
+      // Skip artificial instrs.
+      if (i > static_cast<int>(SUnits.size()) - 1)
+        continue;
 
-    if (i == SCHD_STALL)
-      ScheduleNode(NULL, cycle);
-    else {
-      SUnit *unit = &SUnits[i];
-      if (unit && unit->isInstr())
-        ScheduleNode(unit, cycle);
+      if (i == SCHD_STALL)
+        ScheduleNode(NULL, cycle);
+      else {
+        SUnit *unit = &SUnits[i];
+        if (unit && unit->isInstr())
+          ScheduleNode(unit, cycle);
+      }
+    }
+    placeDebugValues();
+  }
+  else {
+    for (InstSchedule *sched : SchedsAtDiffOccupancies) {
+      CurrentTop = nextIfDebug(RegionBegin, RegionEnd);
+      CurrentBottom = RegionEnd;
+      for (InstCount i = sched->GetFrstInst(cycle, slot); i != INVALID_VALUE;
+          i = sched->GetNxtInst(cycle, slot)) {
+
+        if (i > static_cast<int>(SUnits.size()) - 1)
+          continue;
+
+        if (i == SCHD_STALL)
+          ScheduleNode(NULL, cycle);
+        else {
+          SUnit *unit = &SUnits[i];
+          if (unit && unit->isInstr())
+            ScheduleNode(unit, cycle);
+        }
+      }
+      placeDebugValues();
+      SchedEval.recordSchedule(schedIndex);
+      SchedEval.calculateRPAfter(schedIndex);
+      SchedEval.calculateILPAfter(schedIndex);
+      schedIndex++;
     }
   }
-  placeDebugValues();
 
   if (SecondPass) {
-    SchedEval.calculateRPAfter();
-    SchedEval.claculateILPAfter();
-
     const int64_t Threshold = 100;
-    unsigned OccDiff = SchedEval.getOccDifference();
-    int64_t ILPDiff = SchedEval.getILPDifference();
-    dbgs() << "Occupancy improvement metric: " << OccDiff << "\n";
-    dbgs() << "ILP improvement metric: " << ILPDiff << "\n";
-    if (OccDiff > 0 && ILPDiff > Threshold) {
-      dbgs() << "Reverting scheduling\n";
-      SchedEval.revertScheduling();
-      SIMachineFunctionInfo *MFI = const_cast<SIMachineFunctionInfo *>(
-          MF.getInfo<SIMachineFunctionInfo>());
-      MFI->limitOccupancy(SchedEval.getOccupancyBefore());
-    } else {
-      OST->finalizeRegion(Sched);
+    if (!SchedsAtDiffOccupancies.empty()) {
+      if (SchedEval.getOccAtIndex(0) > SchedEval.getOccAtIndex(1))
+        printf("Occ regression from AMD\n");
+      printf("Occ: %u", SchedEval.getOccAtIndex(0));
+      for (int i = 1; i < schedIndex; i++) {
+        printf(", %u", SchedEval.getOccAtIndex(i));
+      }
+      printf("\n");
+
+      printf("ILP: %ld", SchedEval.getILPAtIndex(0));
+      for (int i = 1; i < schedIndex; i++) {
+        printf(", %ld", SchedEval.getILPAtIndex(i));
+      }
+      printf("\n");
+
+      unsigned OccDiff = SchedEval.getOccAtIndex(1) - SchedEval.getOccAtIndex(0);
+      int64_t ILPDiff = SchedEval.getILPAtIndex(1) - SchedEval.getILPAtIndex(0);
+      // dbgs() << "Occupancy improvement metric: " << OccDiff << "\n";
+      // dbgs() << "ILP improvement metric: " << ILPDiff << "\n";
+      if (false /*OccDiff > 0 && ILPDiff > Threshold*/) {
+        dbgs() << "Reverting scheduling\n";
+        SchedEval.revertScheduling(schedIndex);
+        SIMachineFunctionInfo *MFI = const_cast<SIMachineFunctionInfo *>(
+            MF.getInfo<SIMachineFunctionInfo>());
+        MFI->limitOccupancy(SchedEval.getOccupancyBefore());
+      } else {
+        OST->finalizeRegion(Sched);
+      }
     }
   }
 

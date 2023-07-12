@@ -264,7 +264,8 @@ void KeysHelper2::initForRegion(DataDepGraph *DDG) {
 
 // compute key
 __host__ __device__
-HeurType KeysHelper2::computeKey(SchedInstruction *Inst, bool IncludeDynamic, RegisterFile *RegFiles, DataDepGraph *ddg) const {
+HeurType KeysHelper2::computeKey(SchedInstruction *Inst, bool IncludeDynamic, int heurChoice,
+                                 RegisterFile *RegFiles, DataDepGraph *ddg) const {
   assert(WasInitialized);
 
   HeurType Key= 0;
@@ -276,8 +277,8 @@ HeurType KeysHelper2::computeKey(SchedInstruction *Inst, bool IncludeDynamic, Re
   HeurType MaxISO;
   bool useEntries1;
   #ifdef __HIP_DEVICE_COMPILE__
-    // even blocks use priorities 1, odd blocks use priority 2
-    if (hipBlockIdx_x % 2 == 0) {
+    // half of blocks use priorities 1, half use priority 2
+    if (heurChoice == 0) {
       priorities = priorities1;
       KeysSz = KeysSz1;
       MaxValue = MaxValue1;

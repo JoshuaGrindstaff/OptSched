@@ -2741,6 +2741,7 @@ InstSchedule::InstSchedule(MachineModel *machMdl, DataDepGraph *dataDepGraph,
   totalStalls_ = 0;
   unnecessaryStalls_ = 0;
   isZeroPerp_ = false;
+  occupancy_ = 0;
 }
 
 InstSchedule::InstSchedule() {
@@ -2757,6 +2758,7 @@ InstSchedule::InstSchedule() {
   totalStalls_ = 0;
   unnecessaryStalls_ = 0;
   isZeroPerp_ = false;
+  occupancy_= 0;
 }
 
 InstSchedule::~InstSchedule() {
@@ -2968,6 +2970,7 @@ void InstSchedule::Copy(InstSchedule *src) {
   totalStalls_ = src->totalStalls_;
   unnecessaryStalls_ = src->unnecessaryStalls_;
   isZeroPerp_ = src->isZeroPerp_;
+  occupancy_ = src->occupancy_;
 }
 
 __host__ __device__

@@ -8,6 +8,7 @@
 #include "OptSchedGCNTarget.h"
 #include "Wrapper/OptSchedMachineWrapper.h"
 #include "opt-sched/Scheduler/OptSchedTarget.h"
+#include "Wrapper/AMDGPU/GCNOptSched.h"
 #include "OptSched/include/opt-sched/Scheduler/config.h"
 #include "opt-sched/Scheduler/data_dep.h"
 #include "opt-sched/Scheduler/defines.h"
@@ -100,6 +101,8 @@ void OptSchedGCNTarget::initRegion(llvm::ScheduleDAGInstrs *DAG_,
       getAdjustedOccupancy(ST, P.getVGPRNum(ST->hasGFX90AInsts()), P.getSGPRNum(), MaxOccLDS);
   TargetOccupancy =
       shouldLimitWaves(MFI) ? getOccupancyLimit(OccFile) : MFI->getOccupancy();
+  ScheduleDAGOptSchedGCN *DAGGCN = static_cast<ScheduleDAGOptSchedGCN *>(DAG);
+  InitialOccupancy = DAGGCN->getInitialOccupancy();
 
   if (TargetOccupancy > MFI->getOccupancy())
     TargetOccupancy = MFI->getOccupancy();
@@ -187,10 +190,15 @@ bool OptSchedGCNTarget::shouldKeepSchedule() {
   if (RegionEndingOccupancy >= RegionStartingOccupancy ||
       RegionEndingOccupancy >= TargetOccupancy)
     return true;
-
+  if (RegionEndingOccupancy >= InitialOccupancy) {
+    Logger::Info(
+      "Occupancy decreased from %d to %d, but is still above %d.",
+      RegionStartingOccupancy, RegionEndingOccupancy, InitialOccupancy);
+    return true;
+  }
   Logger::Info(
-      "Reverting Scheduling because of a decrease in occupancy from %d to %d.",
-      RegionStartingOccupancy, RegionEndingOccupancy);
+      "Reverting Scheduling because of a decrease in occupancy from %d to %d. Initial occupancy: %d.",
+      RegionStartingOccupancy, RegionEndingOccupancy, InitialOccupancy);
   return false;
 }
 

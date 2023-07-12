@@ -92,7 +92,8 @@ class KeysHelper2 {
 
   // compute key
   __host__ __device__
-  HeurType computeKey(SchedInstruction *Inst, bool IncludeDynamic, RegisterFile *RegFiles = NULL, DataDepGraph *ddg = NULL) const;
+  HeurType computeKey(SchedInstruction *Inst, bool IncludeDynamic, int heurChoice,
+                      RegisterFile *RegFiles = NULL, DataDepGraph *ddg = NULL) const;
   __host__ __device__
   HeurType computeKey(const uint64_t *Values, int whichPrirts = 1) const;
 

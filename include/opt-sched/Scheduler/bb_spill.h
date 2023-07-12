@@ -125,6 +125,7 @@ private:
   // variables needed for AMDGPU spill cost function
   unsigned MaxOccLDS_;
   unsigned TargetOccupancy_;
+  unsigned InitialOccupancy_;
 
   // Virtual Functions:
   // Given a schedule, compute the cost function value
@@ -156,7 +157,7 @@ private:
   InstCount CmputDynmcCost_();
 
   __host__ __device__
-  void UpdateSpillInfoForSchdul_(SchedInstruction *inst, bool trackCnflcts);
+  void UpdateSpillInfoForSchdul_(SchedInstruction *inst, bool trackCnflcts, int blockOccupancyNum = 0);
   void UpdateSpillInfoForUnSchdul_(SchedInstruction *inst);
   void SetupPhysRegs_();
   __host__ __device__
@@ -184,7 +185,7 @@ public:
 
   __device__
   InstCount getAMDGPUCost(unsigned * PRP, unsigned TargetOccupancy,
-                               unsigned MaxOccLDS, int16_t regTypeCnt);
+                               unsigned MaxOccLDS, int16_t regTypeCnt, int blockOccupancyNum = -1);
 
   InstCount CmputCostLwrBound();
   InstCount CmputExecCostLwrBound();
@@ -199,7 +200,7 @@ public:
   //pure virtual function, so a copied BBWithSpill cannot invoke it
   __device__
   void Dev_SchdulInst(SchedInstruction *inst, InstCount cycleNum, 
-		      InstCount slotNum, bool trackCnflcts);
+		      InstCount slotNum, bool trackCnflcts, int blockOccupancyNum = 0);
   void UnschdulInst(SchedInstruction *inst, InstCount cycleNum,
                     InstCount slotNum, EnumTreeNode *trgtNode);
   void SetSttcLwrBounds(EnumTreeNode *node);
@@ -226,8 +227,12 @@ public:
   InstCount getTargetOccupancy() {
     return TargetOccupancy_;
   };
+    __host__ __device__
+  InstCount getInitialOccupancy() {
+    return InitialOccupancy_;
+  };
   __host__ __device__
-  bool closeToRPConstraint();
+  bool closeToRPConstraint(int blockOccupancyNum = -1);
   __host__ __device__
   InstCount GetCrntSpillCost();
   // can only compute SLIL if SLIL was the spillCostFunc
@@ -235,7 +240,7 @@ public:
   InstCount CmputCostForFunction(SPILL_COST_FUNCTION SpillCF);
   // Device version of above function
   __device__
-  InstCount Dev_CmputCostForFunction(SPILL_COST_FUNCTION SpillCF);
+  InstCount Dev_CmputCostForFunction(SPILL_COST_FUNCTION SpillCF, int blockOccupancyNum = -1);
   __host__ __device__
   InstCount ReturnPeakSpillCost();
   __host__ __device__
@@ -252,6 +257,11 @@ public:
   void setMaxOccLDS(unsigned MaxOccLDS) {
     MaxOccLDS_ = MaxOccLDS;
   }
+  int getSpillCostWeight() {
+    return SCW_;
+  }
+  __device__
+  InstCount getOccupancy();
   // size_t calculateMemoryNeeded() {
   //   return regTypeCnt_ * sizeof(WeightedBitVector) * numThreads * 2;
   // }

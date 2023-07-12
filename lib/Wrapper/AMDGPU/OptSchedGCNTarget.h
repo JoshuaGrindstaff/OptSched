@@ -70,6 +70,9 @@ public:
   unsigned getTargetOccupancy() const {
     return TargetOccupancy;
   }
+  unsigned getInitialOccupancy() const {
+    return InitialOccupancy;
+  }
 
 private:
   const llvm::MachineFunction *MF;
@@ -80,6 +83,7 @@ private:
   unsigned RegionStartingOccupancy;
   unsigned RegionEndingOccupancy;
   unsigned TargetOccupancy;
+  unsigned InitialOccupancy;
 
   // Limiting occupancy has shown to greatly increase the performance of some kernels
   int OccupancyLimit;

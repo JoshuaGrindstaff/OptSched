@@ -28,9 +28,8 @@ namespace opt_sched {
 // use edge count to approximate memory usage, using nodeCnt reflect
 // memory usage as well. Smaller node count DAGs can use more memory.
 #define REGION_MAX_EDGE_CNT 800000
-#define NUMBLOCKSMANYANTS 80
-#define NUMTHREADSPERBLOCK 64
-#define BLOCKOPTSTALLTHRESHOLD 30
+#define NUMBLOCKSMANYANTS 180
+#define BLOCKOPTSTALLTHRESHOLD 135
 
 enum class DCF_OPT {
   OFF,
@@ -46,17 +45,22 @@ struct Choice {
   double Score;
 };
 
+struct BlockDecision {
+  int heurChoice; // range 0-1, which heuristic will be used
+  int blockOccupancyNum; // range 0-(difference in occupancy from AMD's schedule)
+};
+
 class ACOScheduler : public ConstrainedScheduler {
 public:
   ACOScheduler(DataDepGraph *dataDepGraph, MachineModel *machineModel,
                InstCount upperBound, SchedPriorities priorities1,
                SchedPriorities priorities2, bool vrfySched, bool IsPostBB, int numBlocks,
-               SchedRegion *dev_rgn = NULL, DataDepGraph *dev_DDG = NULL,
-	             MachineModel *dev_MM = NULL, void *dev_states = NULL);
+               SchedRegion *dev_rgn = NULL, DataDepGraph *dev_DDG = NULL, MachineModel *dev_MM = NULL,
+               void *dev_states = NULL, int numDiffOccupancies = 1, int targetOccupancy = 0);
   __host__
   virtual ~ACOScheduler();
-  FUNC_RESULT FindSchedule(InstSchedule *schedule, SchedRegion *region, 
-		           ACOScheduler *dev_AcoSchdulr = NULL);
+  FUNC_RESULT FindSchedule(InstSchedule *schedule, std::vector<InstSchedule *> &SchedsAtDiffOccupancies,
+                          SchedRegion *region, ACOScheduler *dev_AcoSchdulr = NULL);
   __host__
   inline void UpdtRdyLst_(InstCount cycleNum, int slotNum);
   // Set the initial schedule for ACO
@@ -75,17 +79,17 @@ public:
   // of creating a new one
   __host__ __device__
   InstSchedule *FindOneSchedule(InstCount RPTarget,
-                                InstSchedule *dev_schedule = NULL);
+                                InstSchedule *dev_schedule = NULL, int kernelNum = -1);
   __host__ __device__
-  void UpdatePheromone(InstSchedule *schedule, bool isIterationBest);
+  void UpdatePheromone(InstSchedule *schedule, bool isIterationBest, int kernelNum = -1);
   __host__ __device__
-  void ScalePheromoneTable();
+  void ScalePheromoneTable(int kernelNum);
   // Copies pheromone table to passed shared memory array
   __device__ 
-  void CopyPheromonesToSharedMem(double *s_pheromone);
+  void CopyPheromonesToSharedMem(double *s_pheromone, int kernelNum);
   __host__ __device__
   bool shouldReplaceSchedule(InstSchedule *OldSched, InstSchedule *NewSched,
-                             bool IsGlobal, InstCount RPTarget);
+                             bool IsGlobal, InstCount RPTarget, int occupancyTarget);
   __host__ __device__
   InstCount GetNumAntsTerminated() { return numAntsTerminated_; }
   __host__ __device__
@@ -99,23 +103,31 @@ public:
   __host__ __device__
   int GetNumThreads() { return numThreads_; }
   __host__ __device__
-  void PrintPheromone();
+  void PrintPheromone(int kernelNum = 0);
     // Holds state for each thread for RNG
   void *dev_states_;
+  BlockDecision blockDecisions_[NUMBLOCKSMANYANTS];
+  void setupBlockDecisions();
+  __host__ __device__
+  int GetNumDiffOccupancies() { return numDiffOccupancies_; }
+  __host__ __device__
+  int GetTargetOccupancy() { return targetOccupancy_; }
+  
+  int globalBestIndex[5];
 private:
   __host__ __device__
-  pheromone_t &Pheromone(SchedInstruction *from, SchedInstruction *to);
+  pheromone_t &Pheromone(SchedInstruction *from, SchedInstruction *to, int kernelNum = 0);
   __host__ __device__
-  pheromone_t &Pheromone(InstCount from, InstCount to);
+  pheromone_t &Pheromone(InstCount from, InstCount to, int kernelNum = 0);
   __host__ __device__
-  pheromone_t Score(InstCount FromId, InstCount ToId, HeurType ToHeuristic, bool IsFirstPass);
+  pheromone_t Score(InstCount FromId, InstCount ToId, HeurType ToHeuristic, bool IsFirstPass, int kernelNum = 0);
   DCF_OPT ParseDCFOpt(const std::string &opt);
   __host__ __device__
   InstCount SelectInstruction(SchedInstruction *lastInst, InstCount totalStalls, 
                               SchedRegion *rgn, bool &unnecessarilyStalling, 
-                              bool closeToRPTarget, bool currentlyWaiting);
+                              bool closeToRPTarget, bool currentlyWaiting, int kernelNum = -1);
   __host__ __device__
-  void UpdateACOReadyList(SchedInstruction *Inst, bool IsSecondPass);
+  void UpdateACOReadyList(SchedInstruction *Inst, bool IsSecondPass, int heurChoice = 0);
 
   DeviceVector<pheromone_t> pheromone_;
   // new ds representations
@@ -150,6 +162,7 @@ private:
   bool VrfySched_;
   bool IsPostBB;
   bool IsTwoPassEn;
+  bool weightedSecondPass;
   pheromone_t ScRelMax;
   DCF_OPT DCFOption;
   SPILL_COST_FUNCTION DCFCostFn;
@@ -162,7 +175,7 @@ private:
 
   bool justWaited = false;
   int globalBestStalls_ = 0;
-  int numBlocks_, numThreads_;
+  int numBlocks_, numThreads_, numDiffOccupancies_, targetOccupancy_;
   int *dev_RP0OrPositiveCount;
   int RP0OrPositiveCount;
 

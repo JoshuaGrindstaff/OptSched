@@ -86,7 +86,8 @@ public:
                       bool &isHurstcOptml, InstCount &bestCost,
                       InstCount &bestSchedLngth, InstCount &hurstcCost,
                       InstCount &hurstcSchedLngth, InstSchedule *&bestSched,
-                      bool filterByPerp, const BLOCKS_TO_KEEP blocksToKeep, unsigned loopDepth);
+                      bool filterByPerp, const BLOCKS_TO_KEEP blocksToKeep,
+                      unsigned loopDepth, std::vector<InstSchedule *> &SchedsAtDiffOccupancies);
 
   // External abstract functions.
 
@@ -297,7 +298,8 @@ protected:
 
   FUNC_RESULT runACO(InstSchedule *ReturnSched, InstSchedule *InitSched,
                      bool IsPostBB, unsigned long randSeed, int numBlocks,
-                     bool devACOEnabled);
+                     bool devACOEnabled, int numKernels,
+                     std::vector<InstSchedule *> &SchedsAtDiffOccupancies);
 };
 
 } // namespace opt_sched

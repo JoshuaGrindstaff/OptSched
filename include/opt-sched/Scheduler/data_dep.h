@@ -757,6 +757,8 @@ private:
 
   int totalStalls_, unnecessaryStalls_;
   bool isZeroPerp_;
+  // stores occupancy to be used in best schedule comparison
+  int occupancy_;
 
   // Number of threads used by parallel ACO.
   int numThreads_;
@@ -895,6 +897,10 @@ public:
   void setIsZeroPerp(bool isZeroPerp) { isZeroPerp_ = isZeroPerp; }
   __host__ __device__
   bool getIsZeroPerp() { return isZeroPerp_; }
+  __host__ __device__
+  void setOccupancy(int occupancy) { occupancy_ = occupancy; }
+  __host__ __device__
+  int getOccupancy() { return occupancy_; }
 };
 /*****************************************************************************/
 

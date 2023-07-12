@@ -10,8 +10,17 @@
 #include "SIMachineFunctionInfo.h"
 #include "llvm/Support/Debug.h"
 #include "AMDGPUExportClustering.h"
+#include "llvm/CodeGen/MachineLoopInfo.h"
+#include <math.h> 
 
 #define DEBUG_TYPE "optsched"
+#define MAX_POSSIBLE_OCCUPANCY 10
+#define RP_WEIGHT 4
+#define ILP_WEIGHT 1
+#define OCC_WEIGHT 20
+#define LD_FACTOR 15
+#define COST_THRESHOLD 12
+// #define DEBUG_RESET_OCCUPANCY 1
 
 using namespace llvm::opt_sched;
 
@@ -55,6 +64,7 @@ ScheduleDAGOptSchedGCN::ScheduleDAGOptSchedGCN(
   #ifdef DEBUG_RESET_OCCUPANCY
     printf("Occ before: %d\n", MFI->getOccupancy());
   #endif
+  setInitialOccupancy(MFI->getCurrentOccupancy());
   MFI->resetInitialOccupancy(*C->MF);
   #ifdef DEBUG_RESET_OCCUPANCY
     printf("Occ after: %d\n", MFI->getOccupancy());
@@ -109,8 +119,105 @@ void ScheduleDAGOptSchedGCN::finalizeSchedule() {
         LLVM_DEBUG(getRealRegionPressure(RegionBegin, RegionEnd, LIS, "After"));
         Region = std::make_pair(RegionBegin, RegionEnd);
         exitRegion();
+        if (S == OptSchedBalanced) {
+          auto &SchedEvalForMBB = SchedEvals[RegionNumber];
+
+          int ILPWeight = pow(LD_FACTOR, C->MLI->getLoopDepth(MBB));
+          SchedEvalForMBB.setILPWeight(ILPWeight);
+        }
       }
       finishBlock();
+    }
+    // Reset
+    RegionNumber = ~0u;
+    int regionNum = 0;
+    // some kernels can contain 0 scheduling regions, need to check it's not empty
+    if (!SchedEvals.empty()) {
+      Logger::Info("Starting Reverting");
+      auto &firstSchedEval = SchedEvals[0];
+      int numOccupancies = firstSchedEval.getNumOccupancies();
+      int64_t ILPSum[numOccupancies];
+      for (int i = 0; i < numOccupancies; i++)
+        ILPSum[i] = 0;
+      unsigned OccTracker[numOccupancies];
+      std::fill(OccTracker, OccTracker + numOccupancies, MAX_POSSIBLE_OCCUPANCY);
+
+      for (auto &Region : Regions) {
+        auto &SchedEval = SchedEvals[regionNum];
+        auto ILPWeight = SchedEval.getILPWeight();
+        for (int i = 0; i < numOccupancies; i++) {
+          ILPSum[i] += SchedEval.getILPAtIndex(i) * ILPWeight;
+          OccTracker[i] = std::min(OccTracker[i], SchedEval.getOccAtIndex(i));
+          // printf("Region Num: %d Choice %d, occ cost: %d, ilp cost: %d, ILP weight: %d\n", regionNum, i, OccTracker[i], SchedEval.getILPAtIndex(i) * ILPWeight, ILPWeight);
+        }
+        regionNum++;
+      }
+      for (int i = 0; i < numOccupancies; i++) {
+        if (i > 0 && ILPSum[i] > ILPSum[i-1])
+          printf("ILP Regression\n");
+      }
+
+      int schedIndex = 0;
+      int weightedCost[numOccupancies + 1];
+
+      int occCost = RP_WEIGHT * OCC_WEIGHT * (10 - OccTracker[0]);
+      int ilpCost = ILP_WEIGHT * ILPSum[0];
+      weightedCost[0] = ilpCost + occCost;
+      printf("Choice 0, Weighted Cost: %d, occ cost: %d, ilp cost: %d\n", weightedCost[0], occCost, ilpCost);
+      int minCost = weightedCost[0];
+      int minIndex = 0;
+      for (int i = 1; i < numOccupancies; i++) {
+        occCost = RP_WEIGHT * OCC_WEIGHT * (10 - OccTracker[i]);
+        ilpCost = ILP_WEIGHT * ILPSum[i];
+        weightedCost[i] = ilpCost + occCost;
+        if (weightedCost[i] < minCost) {
+          minIndex = i;
+          minCost = weightedCost[i];
+        }
+        printf("Choice %d, Weighted Cost: %d, occ cost: %d, ilp cost: %d\n",  i, weightedCost[i], occCost, ilpCost);
+      }
+      printf("Min Index is: %d\n", minIndex);
+      regionNum = 0;
+
+      // temp to test only use AMD Schedule
+      // minIndex = 0;
+
+      // set up the block beginning and ending in order to revert
+      MachineBasicBlock *MBB = nullptr;
+      // Reset
+      RegionNumber = ~0u;
+      for (auto &Region : Regions) {
+        RegionBegin = Region.first;
+        RegionEnd = Region.second;
+
+        if (RegionBegin->getParent() != MBB) {
+          if (MBB)
+            finishBlock();
+          MBB = RegionBegin->getParent();
+          startBlock(MBB);
+        }
+        unsigned NumRegionInstrs = std::distance(begin(), end());
+        enterRegion(MBB, begin(), end(), NumRegionInstrs);
+
+        auto &SchedEval = SchedEvals[regionNum];
+        SchedEval.revertScheduling(minIndex);
+        regionNum++;
+
+        // Skip empty scheduling regions (0 or 1 schedulable instructions).
+        if (begin() == end() || begin() == std::prev(end())) {
+          exitRegion();
+          continue;
+        }
+        LLVM_DEBUG(
+            getRealRegionPressure(RegionBegin, RegionEnd, LIS, "Before"));
+        LLVM_DEBUG(getRealRegionPressure(RegionBegin, RegionEnd, LIS, "After"));
+        Region = std::make_pair(RegionBegin, RegionEnd);
+        exitRegion();
+      }
+      finishBlock();
+      Logger::Info("Finish Reverting");
+    } else {
+      printf("No schedEvals?\n");
     }
   }
 

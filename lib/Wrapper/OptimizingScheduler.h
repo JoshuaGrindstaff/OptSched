@@ -20,6 +20,7 @@
 #include "llvm/ADT/SmallString.h"
 #include "llvm/CodeGen/MachineScheduler.h"
 #include "llvm/Support/Debug.h"
+#include "llvm/CodeGen/MachineBlockFrequencyInfo.h"
 #include "GCNRegPressure.h"
 #include <chrono>
 #include <memory>
@@ -64,47 +65,59 @@ class ScheduleEvaluator {
 private:
   ScheduleDAGOptSched &DAG;
 
-  // RP before scheduling.
-  GCNRegPressure RPBefore;
-
   // RP after scheduling.
-  GCNRegPressure RPAfter;
-
-  // ILP before scheduling.
-  int64_t ILPBefore;
+  std::vector<GCNRegPressure> SchedRP;
 
   // ILP after scheduling.
-  int64_t ILPAfter;
+  std::vector<int64_t> SchedILP;
 
-  // Record the original instruction order.
-  std::vector<MachineInstr *> Unsched;
+  // Record the instruction order.
+  std::vector<std::vector<MachineInstr *>> storedSchedules;
+
+  uint64_t Frequency;
 
   ILPMetrics calculateILP() const;
 
+  int schedCount;
+
 public:
-  ScheduleEvaluator(ScheduleDAGOptSched &DAG) : DAG(DAG) {}
+  ScheduleEvaluator(ScheduleDAGOptSched &DAG) : DAG(DAG) {schedCount = 0;}
 
   virtual ~ScheduleEvaluator() = default;
 
   void calculateRPBefore();
 
-  void calculateRPAfter();
+  void calculateRPAfter(int schedIndex);
 
   void calcualteILPBefore();
 
-  void claculateILPAfter();
+  void calculateILPAfter(int schedIndex);
 
-  // Returns RPAfter - RPBefore.
-  unsigned getOccDifference() const;
+  // Returns RP at the given index
+  unsigned getOccAtIndex(int schedIndex) const;
 
-  // Returns ILPAfter - ILPBefore.
-  int64_t getILPDifference() const;
+  // Returns ILP at the given index
+  int64_t getILPAtIndex(int schedIndex) const;
+
+  // Returns weighted ILP at the given index
+  int64_t getWeightedILPAtIndex(int schedIndex) const;
 
   unsigned getOccupancyBefore() const;
 
-  void recordSchedule();
+  void recordSchedule(int schedIndex);
 
-  void revertScheduling();
+  void revertScheduling(int schedIndex);
+
+  void setILPWeight(BlockFrequency BF) {
+    Frequency = BF.getFrequency();
+  }
+  uint64_t getILPWeight() {
+    return Frequency;
+  }
+
+  int getNumOccupancies() {
+    return schedCount;
+  }
 };
 
 class ScheduleDAGOptSched : public ScheduleDAGMILive {

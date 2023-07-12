@@ -183,7 +183,8 @@ FUNC_RESULT SchedRegion::FindOptimalSchedule(
     Milliseconds rgnTimeout, Milliseconds lngthTimeout, bool &isLstOptml,
     InstCount &bestCost, InstCount &bestSchedLngth, InstCount &hurstcCost,
     InstCount &hurstcSchedLngth, InstSchedule *&bestSched, bool filterByPerp,
-    const BLOCKS_TO_KEEP blocksToKeep, unsigned loopDepth) {
+    const BLOCKS_TO_KEEP blocksToKeep, unsigned loopDepth,
+    std::vector<InstSchedule *> &SchedsAtDiffOccupancies) {
 
   ListScheduler *lstSchdulr = NULL;
   SequentialListScheduler *seqSchdulr = NULL;
@@ -212,6 +213,13 @@ FUNC_RESULT SchedRegion::FindOptimalSchedule(
 
   // Do we need to compute the graph's transitive closure?
   bool needTransitiveClosure = false;
+
+  unsigned targOcc = ((BBWithSpill *)this)->getTargetOccupancy();
+  unsigned initOcc = ((BBWithSpill *)this)->getInitialOccupancy();
+
+  // TODO: Set this value based on register usage
+  // int numDiffOccupancies = targOcc - initOcc;
+  int numDiffOccupancies = IsSecondPass() ? 3 : 1;
 
   // Algorithm run order:
   // 1) Heuristic Scheduler
@@ -531,7 +539,7 @@ FUNC_RESULT SchedRegion::FindOptimalSchedule(
     AcoStart = Utilities::GetProcessorTime();
     AcoSchedule = new InstSchedule(machMdl_, dataDepGraph_, vrfySched_);
 
-    rslt = runACO(AcoSchedule, lstSched, false, randSeed, numBlocks, devACOEnabled);
+    rslt = runACO(AcoSchedule, lstSched, false, randSeed, numBlocks, devACOEnabled, numDiffOccupancies, SchedsAtDiffOccupancies);
     if (rslt != RES_SUCCESS) {
       Logger::Fatal("ACO scheduling failed");
       if (lstSchdulr)
@@ -712,7 +720,7 @@ FUNC_RESULT SchedRegion::FindOptimalSchedule(
     InstSchedule *AcoAfterEnumSchedule =
         new InstSchedule(machMdl_, dataDepGraph_, vrfySched_);
 
-    FUNC_RESULT acoRslt = runACO(AcoAfterEnumSchedule, bestSched, true, randSeed, numBlocks, devACOEnabled);
+    FUNC_RESULT acoRslt = runACO(AcoAfterEnumSchedule, bestSched, true, randSeed, numBlocks, devACOEnabled, numDiffOccupancies, SchedsAtDiffOccupancies);
     if (acoRslt != RES_SUCCESS) {
       Logger::Info("Running final ACO failed");
       delete AcoAfterEnumSchedule;
@@ -1093,7 +1101,8 @@ void InitCurand(hiprandState_t *dev_states, unsigned long seed, int instCnt) {
 FUNC_RESULT SchedRegion::runACO(InstSchedule *ReturnSched,
                                 InstSchedule *InitSched, bool IsPostBB,
                                 unsigned long randSeed, int numBlocks,
-                                bool devACOEnabled) {
+                                bool devACOEnabled, int numDiffOccupancies,
+                                std::vector<InstSchedule *> &SchedsAtDiffOccupancies) {
   InitForSchdulng();
   FUNC_RESULT Rslt;
   int numThreads = numBlocks * NUMTHREADSPERBLOCK;
@@ -1142,13 +1151,14 @@ FUNC_RESULT SchedRegion::runACO(InstSchedule *ReturnSched,
     ACOScheduler *AcoSchdulr = new ACOScheduler(
         dataDepGraph_, machMdl_, abslutSchedUprBound_, acoPrirts1_, acoPrirts2_,
         vrfySched_, IsPostBB, numBlocks, (SchedRegion *)dev_rgn, dev_DDG,
-        dev_machMdl_, dev_states);
+        dev_machMdl_, dev_states, numDiffOccupancies, ((BBWithSpill*)this)->getTargetOccupancy());
     AcoSchdulr->setInitialSched(InitSched);
     // Alloc dev arrays for parallel ACO
     AcoSchdulr->AllocDevArraysForParallelACO();
     // Copy ACOScheduler to device
     ACOScheduler *dev_AcoSchdulr;
     memSize = sizeof(ACOScheduler);
+    AcoSchdulr->setupBlockDecisions();
     gpuErrchk(hipMallocManaged(&dev_AcoSchdulr, memSize));
     gpuErrchk(hipMemcpy(dev_AcoSchdulr, AcoSchdulr, memSize,
                          hipMemcpyHostToDevice));
@@ -1160,7 +1170,7 @@ FUNC_RESULT SchedRegion::runACO(InstSchedule *ReturnSched,
     gpuErrchk(hipMemPrefetchAsync(dev_rgn, memSize, 0));
 
     // FindSchedule
-    Rslt = AcoSchdulr->FindSchedule(ReturnSched, this, dev_AcoSchdulr);
+    Rslt = AcoSchdulr->FindSchedule(ReturnSched, SchedsAtDiffOccupancies, this, dev_AcoSchdulr);
 
     dev_AcoSchdulr->FreeDevicePointers(IsSecondPass());
     hipFree(dev_AcoSchdulr);
@@ -1183,7 +1193,7 @@ FUNC_RESULT SchedRegion::runACO(InstSchedule *ReturnSched,
         new ACOScheduler(dataDepGraph_, machMdl_, abslutSchedUprBound_,
                          acoPrirts1_, acoPrirts2_, vrfySched_, IsPostBB, numBlocks);
     AcoSchdulr->setInitialSched(InitSched);
-    Rslt = AcoSchdulr->FindSchedule(ReturnSched, this);
+    Rslt = AcoSchdulr->FindSchedule(ReturnSched, SchedsAtDiffOccupancies, this);
     delete AcoSchdulr;
   }
   return Rslt;

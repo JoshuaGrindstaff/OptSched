@@ -20,6 +20,7 @@ private:
   // Vector of scheduling passes to execute.
   SmallVector<SchedPassStrategy, 4> SchedPasses;
 
+  unsigned initialOccupancy_;
 public:
   ScheduleDAGOptSchedGCN(llvm::MachineSchedContext *C,
                          std::unique_ptr<MachineSchedStrategy> S);
@@ -45,6 +46,14 @@ public:
 
   // Run OptSched in ILP/RP balanced mode.
   void scheduleOptSchedBalanced() override;
+
+  void setInitialOccupancy(unsigned initialOccupancy) {
+    initialOccupancy_ = initialOccupancy;
+  }
+
+  unsigned getInitialOccupancy() {
+    return initialOccupancy_;
+  }
 };
 
 } // namespace opt_sched

@@ -61,6 +61,7 @@ BBWithSpill::BBWithSpill(const OptSchedTarget *OST_, DataDepGraph *dataDepGraph,
   regTypeCnt_ = OST->MM->GetRegTypeCnt();
   MaxOccLDS_ = ((OptSchedGCNTarget *) OST)->getMaxOccLDS();
   TargetOccupancy_ = ((OptSchedGCNTarget *) OST)->getTargetOccupancy();
+  InitialOccupancy_ = ((OptSchedGCNTarget *) OST)->getInitialOccupancy();
   regFiles_ = dataDepGraph->getRegFiles(); 
   liveRegs_ = new WeightedBitVector[regTypeCnt_];
   livePhysRegs_ = new WeightedBitVector[regTypeCnt_];
@@ -562,7 +563,7 @@ void BBWithSpill::CmputCrntSpillCost_() {
 //macro to call printf on device instead
 __host__ __device__
 void BBWithSpill::UpdateSpillInfoForSchdul_(SchedInstruction *inst,
-                                            bool trackCnflcts) {
+                                            bool trackCnflcts, int blockOccupancyNum) {
   int16_t regType;
   int defCnt, useCnt, regNum, physRegNum;
   RegIndxTuple *defs, *uses;
@@ -676,15 +677,15 @@ void BBWithSpill::UpdateSpillInfoForSchdul_(SchedInstruction *inst,
 
   if (GetSpillCostFunc() == SCF_SLIL) {
     dev_slilSpillCost_[GLOBALTID] = 
-                   Dev_CmputCostForFunction(GetSpillCostFunc());
+                   Dev_CmputCostForFunction(GetSpillCostFunc(), blockOccupancyNum);
     // calculate PERP with SLIL to consider schedules with PERP of 0
     // even if SLIL is higher
-    perpValueForSlil = Dev_CmputCostForFunction(SCF_PERP);
+    perpValueForSlil = Dev_CmputCostForFunction(SCF_PERP, blockOccupancyNum);
     if (dev_peakSpillCost_[GLOBALTID] < perpValueForSlil)
       dev_peakSpillCost_[GLOBALTID] = perpValueForSlil;
   }
   else
-    newSpillCost = Dev_CmputCostForFunction(GetSpillCostFunc());
+    newSpillCost = Dev_CmputCostForFunction(GetSpillCostFunc(), blockOccupancyNum);
 
 #ifdef IS_DEBUG_SLIL_CORRECT
   if (OPTSCHED_gPrintSpills) {
@@ -995,13 +996,13 @@ void BBWithSpill::SchdulInst(SchedInstruction *inst, InstCount cycleNum,
 
 __device__
 void BBWithSpill::Dev_SchdulInst(SchedInstruction *inst, InstCount cycleNum,
-                             InstCount slotNum, bool trackCnflcts) {
+                             InstCount slotNum, bool trackCnflcts, int blockOccupancyNum) {
   dev_crntCycleNum_[GLOBALTID] = cycleNum;
   dev_crntSlotNum_[GLOBALTID] = slotNum;
   if (inst == NULL)
     return;
   assert(inst != NULL);
-  UpdateSpillInfoForSchdul_(inst, trackCnflcts);
+  UpdateSpillInfoForSchdul_(inst, trackCnflcts, blockOccupancyNum);
 }
 /*****************************************************************************/
 
@@ -1215,7 +1216,7 @@ static unsigned getOccupancyWithNumSGPRs(unsigned SGPRs) {
 
 __device__
 static unsigned getAdjustedOccupancy(unsigned VGPRCount, unsigned SGPRCount,
-                                     unsigned MaxOccLDS) {
+                                     unsigned MaxOccLDS, bool print = false) {
   unsigned MaxOccVGPR = getOccupancyWithNumVGPRs(VGPRCount);
   unsigned MaxOccSGPR = getOccupancyWithNumSGPRs(SGPRCount);
 
@@ -1237,13 +1238,23 @@ static unsigned getAdjustedOccupancy(unsigned VGPRCount, unsigned SGPRCount,
 
 __device__
 InstCount BBWithSpill::getAMDGPUCost(unsigned * PRP, unsigned TargetOccupancy,
-                               unsigned MaxOccLDS, int16_t regTypeCnt) {
+                               unsigned MaxOccLDS, int16_t regTypeCnt, int blockOccupancyNum) {
   auto Occ =
       getAdjustedOccupancy(PRP[OptSchedDDGWrapperGCN::VGPR32*numThreads_+GLOBALTID],
                            PRP[OptSchedDDGWrapperGCN::SGPR32*numThreads_+GLOBALTID], MaxOccLDS);
   // RP cost is the difference between the minimum allowed occupancy for the
   // function, and the current occupancy.
   return Occ >= TargetOccupancy ? 0 : TargetOccupancy - Occ;
+}
+
+__device__
+InstCount BBWithSpill::getOccupancy() {
+  unsigned *PRP = (unsigned *) dev_peakRegPressures_;
+  auto Occ =
+      getAdjustedOccupancy(PRP[OptSchedDDGWrapperGCN::VGPR32*numThreads_+GLOBALTID],
+                           PRP[OptSchedDDGWrapperGCN::SGPR32*numThreads_+GLOBALTID], MaxOccLDS_, true);
+
+  return Occ;
 }
 
 __host__ __device__
@@ -1311,7 +1322,7 @@ unsigned BBWithSpill::getCloseToOccupancy(unsigned VGPRCount, unsigned SGPRCount
 }
 
 __host__ __device__
-bool BBWithSpill::closeToRPConstraint() {
+bool BBWithSpill::closeToRPConstraint(int blockOccupancyNum) {
   #ifdef __HIP_DEVICE_COMPILE__
   auto Occ =
       getCloseToOccupancy(dev_regPressures_[OptSchedDDGWrapperGCN::VGPR32*numThreads_+GLOBALTID],
@@ -1321,15 +1332,15 @@ bool BBWithSpill::closeToRPConstraint() {
       getCloseToOccupancy(regPressures_[OptSchedDDGWrapperGCN::VGPR32],
                            regPressures_[OptSchedDDGWrapperGCN::SGPR32], MaxOccLDS_);
   #endif
-  return Occ <= TargetOccupancy_;
+  return Occ <= TargetOccupancy_ - blockOccupancyNum;
 }
 
 __device__
-InstCount BBWithSpill::Dev_CmputCostForFunction(SPILL_COST_FUNCTION SpillCF) {
+InstCount BBWithSpill::Dev_CmputCostForFunction(SPILL_COST_FUNCTION SpillCF, int blockOccupancyNum) {
   // return the requested cost
   switch (SpillCF) {
   case SCF_TARGET: {
-    return getAMDGPUCost(dev_regPressures_, TargetOccupancy_, MaxOccLDS_, regTypeCnt_);
+    return getAMDGPUCost(dev_regPressures_, TargetOccupancy_, MaxOccLDS_, regTypeCnt_, blockOccupancyNum);
   }
   case SCF_SLIL: {
     InstCount SLILCost = 0; 
@@ -1623,7 +1634,7 @@ void BBWithSpill::AllocDevArraysForParallelACO(int numThreads) {
   hipMalloc(&dev_schduldInstCnt_, memSize);
   memSize = sizeof(WeightedBitVector *) * regTypeCnt_;
   hipMallocManaged(&dev_liveRegs_, memSize);
-  memSize = sizeof(InstCount) * regTypeCnt_ * numThreads;
+  memSize = sizeof(unsigned) * regTypeCnt_ * numThreads;
   hipMalloc(&dev_peakRegPressures_, memSize);
   memSize = sizeof(unsigned) * regTypeCnt_ * numThreads;
   hipMalloc(&dev_regPressures_, memSize);
