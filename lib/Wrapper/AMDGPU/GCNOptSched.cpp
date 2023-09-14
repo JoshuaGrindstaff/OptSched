@@ -19,7 +19,7 @@
 #define ILP_WEIGHT 1
 #define OCC_WEIGHT 20
 #define LD_FACTOR 15
-#define COST_THRESHOLD 12
+#define COST_THRESHOLD 38
 // #define DEBUG_RESET_OCCUPANCY 1
 
 using namespace llvm::opt_sched;
@@ -148,7 +148,7 @@ void ScheduleDAGOptSchedGCN::finalizeSchedule() {
         for (int i = 0; i < numOccupancies; i++) {
           ILPSum[i] += SchedEval.getILPAtIndex(i) * ILPWeight;
           OccTracker[i] = std::min(OccTracker[i], SchedEval.getOccAtIndex(i));
-          // printf("Region Num: %d Choice %d, occ cost: %d, ilp cost: %d, ILP weight: %d\n", regionNum, i, OccTracker[i], SchedEval.getILPAtIndex(i) * ILPWeight, ILPWeight);
+          printf("Region Num: %d Choice %d, occ cost: %d, ilp: %d, ILP weight: %d\n", regionNum, i, OccTracker[i], SchedEval.getILPAtIndex(i), ILPWeight);
         }
         regionNum++;
       }
@@ -169,7 +169,7 @@ void ScheduleDAGOptSchedGCN::finalizeSchedule() {
       for (int i = 1; i < numOccupancies; i++) {
         occCost = RP_WEIGHT * OCC_WEIGHT * (10 - OccTracker[i]);
         ilpCost = ILP_WEIGHT * ILPSum[i];
-        weightedCost[i] = ilpCost + occCost;
+        weightedCost[i] = ilpCost + occCost + COST_THRESHOLD;
         if (weightedCost[i] < minCost) {
           minIndex = i;
           minCost = weightedCost[i];
