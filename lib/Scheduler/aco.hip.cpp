@@ -1174,11 +1174,14 @@ Dev_ACO(SchedRegion *dev_rgn, DataDepGraph *dev_DDG,
       #ifdef DEBUG_INSTR_SELECTION
       printf("Iterations: %d\n", dev_iterations);
       #endif
+
       // Compare to initialSched/current best
+      // this variable is needed or else the subtraction does not function properly
+      int tempGlobalTID = GLOBALTID;
       if (dev_AcoSchdulr->globalBestIndex[GLOBALTID] != INVALID_VALUE &&
           dev_AcoSchdulr->shouldReplaceSchedule(dev_bestSched[GLOBALTID], 
                                                 dev_schedules[dev_AcoSchdulr->globalBestIndex[GLOBALTID]], 
-                                                true, RPTarget, targetOccupancy - GLOBALTID)) {
+                                                true, RPTarget, targetOccupancy - tempGlobalTID)) {
         #ifdef DEBUG_0_PERP
           InstCount NewCost = dev_schedules[dev_AcoSchdulr->globalBestIndex]->GetExecCost();
           InstCount OldCost = dev_bestSched[GLOBALTID]->GetExecCost();
