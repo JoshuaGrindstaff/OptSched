@@ -19,7 +19,7 @@
 #define ILP_WEIGHT 1
 #define OCC_WEIGHT 20
 #define LD_FACTOR 15
-#define COST_THRESHOLD 38
+#define COST_THRESHOLD 7
 // #define DEBUG_RESET_OCCUPANCY 1
 
 using namespace llvm::opt_sched;
@@ -174,13 +174,14 @@ void ScheduleDAGOptSchedGCN::finalizeSchedule() {
           minIndex = i;
           minCost = weightedCost[i];
         }
-        printf("Choice %d, Weighted Cost: %d, occ cost: %d, ilp cost: %d\n",  i, weightedCost[i], occCost, ilpCost);
+        // printf("Choice %d, Weighted Cost: %d, occ cost: %d, ilp cost: %d\n", i, weightedCost[i], occCost, ilpCost);
       }
       printf("Min Index is: %d\n", minIndex);
       regionNum = 0;
 
       // temp to test only use AMD Schedule
-      // minIndex = 0;
+      // minIndex = 3;
+      // printf("Min Index overridden to: %d\n", minIndex);
 
       // set up the block beginning and ending in order to revert
       MachineBasicBlock *MBB = nullptr;
