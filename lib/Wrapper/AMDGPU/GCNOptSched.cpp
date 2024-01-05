@@ -12,6 +12,7 @@
 #include "AMDGPUExportClustering.h"
 #include "llvm/CodeGen/MachineLoopInfo.h"
 #include <math.h> 
+#include <algorithm>
 
 #define DEBUG_TYPE "optsched"
 #define MAX_POSSIBLE_OCCUPANCY 10
@@ -87,7 +88,7 @@ void ScheduleDAGOptSchedGCN::initSchedulers() {
 void ScheduleDAGOptSchedGCN::finalizeSchedule() {
   if (TwoPassEnabled && OptSchedEnabled) {
     initSchedulers();
-
+    int numOccupancies = 0;
     LLVM_DEBUG(dbgs() << "Starting two pass scheduling approach\n");
     TwoPassSchedulingStarted = true;
     for (const SchedPassStrategy &S : SchedPasses) {
@@ -121,6 +122,7 @@ void ScheduleDAGOptSchedGCN::finalizeSchedule() {
         exitRegion();
         if (S == OptSchedBalanced) {
           auto &SchedEvalForMBB = SchedEvals[RegionNumber];
+          numOccupancies = std::max(SchedEvalForMBB.getNumOccupancies(), numOccupancies);
 
           int ILPWeight = pow(LD_FACTOR, C->MLI->getLoopDepth(MBB));
           SchedEvalForMBB.setILPWeight(ILPWeight);
@@ -135,7 +137,7 @@ void ScheduleDAGOptSchedGCN::finalizeSchedule() {
     if (!SchedEvals.empty()) {
       Logger::Info("Starting Reverting");
       auto &firstSchedEval = SchedEvals[0];
-      int numOccupancies = firstSchedEval.getNumOccupancies();
+
       int64_t ILPSum[numOccupancies];
       for (int i = 0; i < numOccupancies; i++)
         ILPSum[i] = 0;
@@ -163,7 +165,7 @@ void ScheduleDAGOptSchedGCN::finalizeSchedule() {
       int occCost = RP_WEIGHT * OCC_WEIGHT * (10 - OccTracker[0]);
       int ilpCost = ILP_WEIGHT * ILPSum[0];
       weightedCost[0] = ilpCost + occCost;
-      printf("Choice 0, Weighted Cost: %d, occ cost: %d, ilp cost: %d\n", weightedCost[0], occCost, ilpCost);
+      // printf("Choice 0, Weighted Cost: %d, occ: %d, occ cost: %d, ilp cost: %d\n", weightedCost[0], OccTracker[0], occCost, ilpCost);
       int minCost = weightedCost[0];
       int minIndex = 0;
       for (int i = 1; i < numOccupancies; i++) {
@@ -174,13 +176,13 @@ void ScheduleDAGOptSchedGCN::finalizeSchedule() {
           minIndex = i;
           minCost = weightedCost[i];
         }
-        // printf("Choice %d, Weighted Cost: %d, occ cost: %d, ilp cost: %d\n", i, weightedCost[i], occCost, ilpCost);
+        //  printf("Choice %d, Weighted Cost: %d, occ: %d, occ cost: %d, ilp cost: %d\n", i, weightedCost[i], OccTracker[i], occCost, ilpCost);
       }
-      printf("Min Index is: %d\n", minIndex);
+      // printf("Min Index is: %d, occupancy is: %d\n", minIndex, OccTracker[minIndex]);
       regionNum = 0;
 
       // temp to test only use AMD Schedule
-      // minIndex = 3;
+      // minIndex = 1;
       // printf("Min Index overridden to: %d\n", minIndex);
 
       // set up the block beginning and ending in order to revert
