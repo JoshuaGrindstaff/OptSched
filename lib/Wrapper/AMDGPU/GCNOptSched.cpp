@@ -16,9 +16,10 @@
 
 #define DEBUG_TYPE "optsched"
 #define MAX_POSSIBLE_OCCUPANCY 10
-#define RP_WEIGHT 4
+#define MAX_DISTANCE_FROM_OCCUPANCY_BOUNDARY 10000
+#define RP_WEIGHT 100
 #define ILP_WEIGHT 1
-#define OCC_WEIGHT 20
+#define OCC_WEIGHT 800
 #define LD_FACTOR 15
 #define COST_THRESHOLD 7
 // #define DEBUG_RESET_OCCUPANCY 1
@@ -55,6 +56,37 @@ static void getRealRegionPressure(MachineBasicBlock::const_iterator Begin,
   RP.moveMaxPressure().dump();
 }
 #endif
+
+static unsigned getVGPRMargin(unsigned VGPRs) {
+  if (VGPRs <= 24) {
+    return 24 - VGPRs;
+  }
+  if (VGPRs <= 28) {
+    return 28 - VGPRs;
+  }
+  if (VGPRs <= 32) {
+    return 32 - VGPRs;
+  }
+  if (VGPRs <= 36) {
+    return 36 - VGPRs;
+  }
+  if (VGPRs <= 40) {
+    return 40 - VGPRs;
+  }
+  if (VGPRs <= 48) {
+    return 48 - VGPRs;
+  }
+  if (VGPRs <= 64) {
+    return 64 - VGPRs;
+  }
+  if (VGPRs <= 84) {
+    return 84 - VGPRs;
+  }
+  if (VGPRs <= 128) {
+    return 128 - VGPRs;
+  }
+  return UINT_MAX;
+}
 
 ScheduleDAGOptSchedGCN::ScheduleDAGOptSchedGCN(
     llvm::MachineSchedContext *C, std::unique_ptr<MachineSchedStrategy> S)
@@ -142,7 +174,9 @@ void ScheduleDAGOptSchedGCN::finalizeSchedule() {
       for (int i = 0; i < numOccupancies; i++)
         ILPSum[i] = 0;
       unsigned OccTracker[numOccupancies];
+      unsigned RegisterMarginTracker[numOccupancies];
       std::fill(OccTracker, OccTracker + numOccupancies, MAX_POSSIBLE_OCCUPANCY);
+      std::fill(RegisterMarginTracker, RegisterMarginTracker + numOccupancies, MAX_DISTANCE_FROM_OCCUPANCY_BOUNDARY);
 
       for (auto &Region : Regions) {
         auto &SchedEval = SchedEvals[regionNum];
@@ -150,6 +184,7 @@ void ScheduleDAGOptSchedGCN::finalizeSchedule() {
         for (int i = 0; i < numOccupancies; i++) {
           ILPSum[i] += SchedEval.getILPAtIndex(i) * ILPWeight;
           OccTracker[i] = std::min(OccTracker[i], SchedEval.getOccAtIndex(i));
+          RegisterMarginTracker[i] = std::min(RegisterMarginTracker[i], getVGPRMargin(SchedEval.getVGPRsAtIndex(i)));
           printf("Region Num: %d Choice %d, occ cost: %d, ilp: %d, ILP weight: %d\n", regionNum, i, OccTracker[i], SchedEval.getILPAtIndex(i), ILPWeight);
         }
         regionNum++;
@@ -162,21 +197,25 @@ void ScheduleDAGOptSchedGCN::finalizeSchedule() {
       int schedIndex = 0;
       int weightedCost[numOccupancies + 1];
 
-      int occCost = RP_WEIGHT * OCC_WEIGHT * (10 - OccTracker[0]);
+      auto calcOccCost = [ ] (unsigned Occ, unsigned VGPRMargin) {
+        return OCC_WEIGHT/Occ + RP_WEIGHT/std::pow(2, VGPRMargin);
+      };
+
+      int occCost = calcOccCost(OccTracker[0], RegisterMarginTracker[0]);
       int ilpCost = ILP_WEIGHT * ILPSum[0];
       weightedCost[0] = ilpCost + occCost;
-      // printf("Choice 0, Weighted Cost: %d, occ: %d, occ cost: %d, ilp cost: %d\n", weightedCost[0], OccTracker[0], occCost, ilpCost);
+      printf("Choice 0, Weighted Cost: %d, occ: %d, occ cost: %d, ilp cost: %d, margin: %d\n", weightedCost[0], OccTracker[0], occCost, ilpCost, RegisterMarginTracker[0]);
       int minCost = weightedCost[0];
       int minIndex = 0;
       for (int i = 1; i < numOccupancies; i++) {
-        occCost = RP_WEIGHT * OCC_WEIGHT * (10 - OccTracker[i]);
+        occCost = calcOccCost(OccTracker[i], RegisterMarginTracker[i]);
         ilpCost = ILP_WEIGHT * ILPSum[i];
         weightedCost[i] = ilpCost + occCost + COST_THRESHOLD;
         if (weightedCost[i] < minCost) {
           minIndex = i;
           minCost = weightedCost[i];
         }
-        //  printf("Choice %d, Weighted Cost: %d, occ: %d, occ cost: %d, ilp cost: %d\n", i, weightedCost[i], OccTracker[i], occCost, ilpCost);
+        printf("Choice %d, Weighted Cost: %d, occ: %d, occ cost: %d, ilp cost: %d, margin: %d\n", i, weightedCost[i], OccTracker[i], occCost, ilpCost, RegisterMarginTracker[i]);
       }
       // printf("Min Index is: %d, occupancy is: %d\n", minIndex, OccTracker[minIndex]);
       regionNum = 0;

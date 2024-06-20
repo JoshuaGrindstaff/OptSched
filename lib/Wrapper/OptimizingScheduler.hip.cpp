@@ -509,6 +509,17 @@ unsigned ScheduleEvaluator::getOccupancyBefore() const {
   return SchedRP[0].getOccupancy(ST);
 }
 
+unsigned ScheduleEvaluator::getVGPRsBefore() const {
+  return SchedRP[0].getVGPRNum(false);
+}
+
+unsigned ScheduleEvaluator::getVGPRsAtIndex(int schedIndex) const {
+  if (schedIndex >= storedSchedules.size()) {
+    return SchedRP.back().getVGPRNum(false);
+  }
+  return SchedRP[schedIndex].getVGPRNum(false);
+}
+
 GCNRegPressure ScheduleDAGOptSched::getRealRegPressure() const {
   GCNDownwardRPTracker RPTracker(*LIS);
   RPTracker.advance(begin(), end());

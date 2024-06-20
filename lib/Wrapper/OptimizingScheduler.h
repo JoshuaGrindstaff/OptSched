@@ -104,6 +104,10 @@ public:
 
   unsigned getOccupancyBefore() const;
 
+  unsigned getVGPRsBefore() const;
+
+  unsigned getVGPRsAtIndex(int schedIndex) const;
+
   void recordSchedule(int schedIndex);
 
   void revertScheduling(int schedIndex);
