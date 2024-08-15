@@ -23,6 +23,7 @@
 #define LD_FACTOR 15
 #define COST_THRESHOLD 7
 // #define DEBUG_RESET_OCCUPANCY 1
+#define DEBUG_TUNING_PARAMETER 1
 
 using namespace llvm::opt_sched;
 
@@ -103,7 +104,16 @@ ScheduleDAGOptSchedGCN::ScheduleDAGOptSchedGCN(
     printf("Occ after: %d\n", MFI->getOccupancy());
   #endif
 }
-
+void PrintTuningParameters()
+{
+  Logger::Info("TuningParameters\n")
+  Logger::Info("RP_WEIGHT = %d\n", RP_WEIGHT);
+  Logger::Info("ILP_WEIGHT = %d\n", ILP_WEIGHT);
+  Logger::Info("OCC_WEIGHT = %d\n", OCC_WEIGHT);
+  Logger::Info("LD_FACTOR = %d\n", LD_FACTOR);
+  Logger::Info("COST_THRESHOLD = %d\n", COST_THRESHOLD);
+  Logger::Info("END\n")
+}
 void ScheduleDAGOptSchedGCN::initSchedulers() {
   // Add passes
 
@@ -118,7 +128,11 @@ void ScheduleDAGOptSchedGCN::initSchedulers() {
 // Execute scheduling passes.
 // Partially copied GCNScheduleDAGMILive::finalizeSchedule
 void ScheduleDAGOptSchedGCN::finalizeSchedule() {
+
   if (TwoPassEnabled && OptSchedEnabled) {
+    #ifdef DEBUG_TUNING_PARAMETER
+      PrintTuningParameters();
+    #endif
     initSchedulers();
     int numOccupancies = 0;
     LLVM_DEBUG(dbgs() << "Starting two pass scheduling approach\n");
@@ -167,7 +181,7 @@ void ScheduleDAGOptSchedGCN::finalizeSchedule() {
     int regionNum = 0;
     // some kernels can contain 0 scheduling regions, need to check it's not empty
     if (!SchedEvals.empty()) {
-      Logger::Info("Starting Reverting");
+      Logger::Info("Starting Reverting\n");
       auto &firstSchedEval = SchedEvals[0];
 
       int64_t ILPSum[numOccupancies];
@@ -198,6 +212,8 @@ void ScheduleDAGOptSchedGCN::finalizeSchedule() {
       int weightedCost[numOccupancies + 1];
 
       auto calcOccCost = [ ] (unsigned Occ, unsigned VGPRMargin) {
+        #ifdef
+        printf( OCC_WEIGHT/Occ + RP_WEIGHT/std::pow(2, VGPRMargin))
         return OCC_WEIGHT/Occ + RP_WEIGHT/std::pow(2, VGPRMargin);
       };
 
