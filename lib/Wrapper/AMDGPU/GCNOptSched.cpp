@@ -103,16 +103,22 @@ ScheduleDAGOptSchedGCN::ScheduleDAGOptSchedGCN(
   #ifdef DEBUG_RESET_OCCUPANCY
     printf("Occ after: %d\n", MFI->getOccupancy());
   #endif
+  printf("Memory Cost: For function: %s\n", MF.getName());
+  printf("InstCost = %d\n", MFI->getInstCost());
+  printf("MemInstCost = %d\n", MFI->getMemInstCost());
+  printf("IndirectAccessInstCost = %d\n", MFI->getIndirectAccessInstCost());
+  printf("LargeStrideInstCost = %d\n", MFI->getLargeStrideInstCost());
+  printf("End\n");
 }
 void PrintTuningParameters()
 {
-  Logger::Info("TuningParameters\n")
-  Logger::Info("RP_WEIGHT = %d\n", RP_WEIGHT);
-  Logger::Info("ILP_WEIGHT = %d\n", ILP_WEIGHT);
-  Logger::Info("OCC_WEIGHT = %d\n", OCC_WEIGHT);
-  Logger::Info("LD_FACTOR = %d\n", LD_FACTOR);
-  Logger::Info("COST_THRESHOLD = %d\n", COST_THRESHOLD);
-  Logger::Info("END\n")
+  printf("TuningParameters\n");
+  printf("RP_WEIGHT = %d\n", RP_WEIGHT);
+  printf("ILP_WEIGHT = %d\n", ILP_WEIGHT);
+  printf("OCC_WEIGHT = %d\n", OCC_WEIGHT);
+  printf("LD_FACTOR = %d\n", LD_FACTOR);
+  printf("COST_THRESHOLD = %d\n", COST_THRESHOLD);
+  printf("END\n");
 }
 void ScheduleDAGOptSchedGCN::initSchedulers() {
   // Add passes
@@ -212,9 +218,11 @@ void ScheduleDAGOptSchedGCN::finalizeSchedule() {
       int weightedCost[numOccupancies + 1];
 
       auto calcOccCost = [ ] (unsigned Occ, unsigned VGPRMargin) {
-        #ifdef
-        printf( OCC_WEIGHT/Occ + RP_WEIGHT/std::pow(2, VGPRMargin))
-        return OCC_WEIGHT/Occ + RP_WEIGHT/std::pow(2, VGPRMargin);
+        #ifdef calOcc
+          printf("OCC_WEIGHT/Occ + RP_WEIGHT/std::pow(2, VGPRMargin)")
+        #define calOcc 1
+        #endif
+	      return OCC_WEIGHT/Occ + RP_WEIGHT/std::pow(2, VGPRMargin);
       };
 
       int occCost = calcOccCost(OccTracker[0], RegisterMarginTracker[0]);
@@ -258,6 +266,9 @@ void ScheduleDAGOptSchedGCN::finalizeSchedule() {
         enterRegion(MBB, begin(), end(), NumRegionInstrs);
 
         auto &SchedEval = SchedEvals[regionNum];
+        //Override
+        //AMD
+        //SchedEval.revertScheduling(1);
         SchedEval.revertScheduling(minIndex);
         regionNum++;
 
