@@ -219,7 +219,7 @@ FUNC_RESULT SchedRegion::FindOptimalSchedule(
 
   // TODO: Set this value based on register usage
   // int numDiffOccupancies = targOcc - initOcc;
-  int numDiffOccupancies = IsSecondPass() ? 3 : 1;
+  int numDiffOccupancies = IsSecondPass() ? 6 : 1;
 
   // Algorithm run order:
   // 1) Heuristic Scheduler
