@@ -382,9 +382,12 @@ void ScheduleEvaluator::calculateRPAfter(int schedIndex) {
 
 unsigned ScheduleEvaluator::getOccAtIndex(int schedIndex) const {
   const GCNSubtarget &ST = DAG.MF.getSubtarget<GCNSubtarget>();
+  // printf("storedSchedules.size() = %d | ",storedSchedules.size());
   if (schedIndex >= storedSchedules.size()) {
+    // printf("schedIndex: %d schedIndex too high\n", schedIndex);
     return SchedRP.back().getOccupancy(ST);
   }
+  // printf("schedIndex: %d\n", schedIndex);
   return SchedRP[schedIndex].getOccupancy(ST);
 }
 

@@ -103,12 +103,14 @@ ScheduleDAGOptSchedGCN::ScheduleDAGOptSchedGCN(
   #ifdef DEBUG_RESET_OCCUPANCY
     printf("Occ after: %d\n", MFI->getOccupancy());
   #endif
+  /*
   printf("Memory Cost: For function: %s\n", MF.getName());
   printf("InstCost = %d\n", MFI->getInstCost());
   printf("MemInstCost = %d\n", MFI->getMemInstCost());
   printf("IndirectAccessInstCost = %d\n", MFI->getIndirectAccessInstCost());
   printf("LargeStrideInstCost = %d\n", MFI->getLargeStrideInstCost());
   printf("End\n");
+  */
 }
 void PrintTuningParameters()
 {
@@ -166,8 +168,7 @@ void ScheduleDAGOptSchedGCN::finalizeSchedule() {
           exitRegion();
           continue;
         }
-        LLVM_DEBUG(
-            getRealRegionPressure(RegionBegin, RegionEnd, LIS, "Before"));
+        LLVM_DEBUG(getRealRegionPressure(RegionBegin, RegionEnd, LIS, "Before"));
         runSchedPass(S);
         LLVM_DEBUG(getRealRegionPressure(RegionBegin, RegionEnd, LIS, "After"));
         Region = std::make_pair(RegionBegin, RegionEnd);

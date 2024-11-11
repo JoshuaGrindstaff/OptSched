@@ -178,7 +178,24 @@ static void dumpDDG(DataDepGraph *DDG, llvm::StringRef DDGDumpPath,
   DDG->WriteToFile(f, RES_SUCCESS, 1, 0);
   std::fclose(f);
 }
-
+int occLevelChoice(int lengthFromOptimal)
+{
+  if (lengthFromOptimal > 30)
+  {
+    printf("OccLevel choosen: 3");
+    return 3;
+  }
+  else if (lengthFromOptimal > 10)
+  {
+    printf("OccLevel choosen: 2");
+    return 2;
+  }
+  {
+    // Enable Early Stopping Heuristics
+    printf("OccLevel choosen: 1");
+    return 1;
+  }
+}
 FUNC_RESULT SchedRegion::FindOptimalSchedule(
     Milliseconds rgnTimeout, Milliseconds lngthTimeout, bool &isLstOptml,
     InstCount &bestCost, InstCount &bestSchedLngth, InstCount &hurstcCost,
@@ -219,7 +236,7 @@ FUNC_RESULT SchedRegion::FindOptimalSchedule(
 
   // TODO: Set this value based on register usage
   // int numDiffOccupancies = targOcc - initOcc;
-  int numDiffOccupancies = IsSecondPass() ? 6 : 1;
+  int numDiffOccupancies = IsSecondPass() ? 3 : 1;
 
   // Algorithm run order:
   // 1) Heuristic Scheduler
@@ -534,7 +551,13 @@ FUNC_RESULT SchedRegion::FindOptimalSchedule(
     bestSchedLngth_ = heuristicScheduleLength;
     bestCost_ = hurstcCost_;
   }
-
+  // calculate the level of occpancies considered based on lowerbound
+  // int numDiffOccupancies = IsSecondPass() ? occLevelChoice(lstSched->GetCrntLngth()-schedLwrBound_) : 1;
+  // if  (IsSecondPass())
+  // {
+  //   Logger::Info("2nd pass starting ILP - schedLwrBound \n %d - %d = %d", lstSched->GetCrntLngth(), schedLwrBound_, lstSched->GetCrntLngth()-schedLwrBound_);
+  // }
+  
   if (AcoBeforeEnum && !isLstOptml) {
     AcoStart = Utilities::GetProcessorTime();
     AcoSchedule = new InstSchedule(machMdl_, dataDepGraph_, vrfySched_);

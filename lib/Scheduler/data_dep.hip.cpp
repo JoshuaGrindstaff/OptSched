@@ -3246,6 +3246,7 @@ void InstSchedule::PrintClassData() {
 
 __host__ __device__
 InstCount InstSchedule::GetCrntLngth() {
+  //printf("slot: %d", crntSlotNum_);
   return (crntSlotNum_ + issuRate_ - 1) / issuRate_;
 }
 
