@@ -98,6 +98,12 @@ public:
   int GetGlobalBestStalls() { return globalBestStalls_; }
   __host__ __device__
   void SetScRelMax(pheromone_t inScRelMax) { ScRelMax = inScRelMax; }
+  
+  __host__ __device__
+  void setNumDiffOccupancies(int numDiffOccupancies) { numDiffOccupancies_ = numDiffOccupancies; }
+  __host__ __device__
+  void setTargetOccupancy(int targetOccupancy) { targetOccupancy_ = targetOccupancy; }
+
   __host__ __device__
   int GetNumBlocks() { return numBlocks_; }
   __host__ __device__

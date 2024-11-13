@@ -93,6 +93,10 @@ public:
 
   void calculateILPAfter(int schedIndex);
 
+  int size() {
+    return storedSchedules.size();
+  }
+
   // Returns RP at the given index
   unsigned getOccAtIndex(int schedIndex) const;
 
@@ -103,6 +107,8 @@ public:
   int64_t getWeightedILPAtIndex(int schedIndex) const;
 
   unsigned getOccupancyBefore() const;
+
+  int getSchedLength(int schedIndex);
 
   unsigned getVGPRsBefore() const;
 
