@@ -36,7 +36,7 @@ double RandDouble(double min, double max) {
 #define MAX_DEPOSITION 6
 #define MAX_DEPOSITION_MINUS_MIN (MAX_DEPOSITION - MIN_DEPOSITION)
 #define ACO_SCHED_STALLS 1
-#define MULTIPLE_PHEROMONE_TABLES 1
+#define MULTIPLE_PHEROMONE_TABLES 0
 // #define CHECK_DIFFERENT_SCHEDULES 1
 // #define DEBUG_DIFFERENT_OCCUPANCIES 1
 
@@ -102,7 +102,7 @@ ACOScheduler::ACOScheduler(DataDepGraph *dataDepGraph,
   */
 
   #ifdef MULTIPLE_PHEROMONE_TABLES
-  int pheromone_size = (count_ + 1) * count_ * numDiffOccupancies_;
+  int pheromone_size = (count_ + 1) * count_ * 3;
   #else
   int pheromone_size = (count_ + 1) * count_;
   #endif
@@ -237,13 +237,15 @@ bool ACOScheduler::shouldReplaceSchedule(InstSchedule *OldSched,InstSchedule *Ne
     if (needsTarget) {
       InstCount NewOcc = NewSched->getOccupancy();
       InstCount OldOcc = OldSched->getOccupancy();
+
       // If both schedules are the same length, choose better occupancy
       if (NewCost == OldCost)
         return NewOcc > OldOcc;
       // If both schedules meet the occupancy target or are the same occupancy, then pick shorter one
       else if (NewOcc >= occupancyTarget && OldOcc >= occupancyTarget || NewOcc == OldOcc) {
-        if (NewCost < OldCost)
+        if (NewCost < OldCost) {
           return true;
+        }
         else
           return false;
       }
@@ -915,7 +917,7 @@ InstSchedule *ACOScheduler::FindOneSchedule(InstCount RPTarget,
         if (inst != NULL) {
   #if USE_ACS
           // local pheromone decay
-          pheromone_t *pheromone = &Pheromone(lastInst, inst);
+          pheromone_t *pheromone = &Pheromone(lastInst, inst, blockOccupancyNum);
           *pheromone = (1 - local_decay) * *pheromone + local_decay * initialValue_;
   #endif
           // save the last instruction scheduled
@@ -970,6 +972,7 @@ InstSchedule *ACOScheduler::FindOneSchedule(InstCount RPTarget,
   }
   rgn_->UpdateScheduleCost(schedule);
   schedule->setIsZeroPerp( ((BBWithSpill *)rgn_)->ReturnPeakSpillCost() == 0 );
+  schedule->setOccupancy(((BBWithSpill *)rgn_)->getOccupancy());
   return schedule;
 #endif
 }
@@ -1677,110 +1680,136 @@ FUNC_RESULT ACOScheduler::FindSchedule(InstSchedule *schedule_out,
     hipFree(dev_schedules);
     schedule_out->Copy(bestSchedule);
   } else { // Run ACO on cpu
-    Logger::Info("Running host ACO with %d ants per iteration", numThreads_);
-    InstCount RPTarget;
-    if (!((BBWithSpill *)rgn_)->needsSLIL())
-      RPTarget = bestSchedule->GetSpillCost();
-    else
-      RPTarget = MaxRPTarget;
-    #ifdef CHECK_DIFFERENT_SCHEDULES
-      std::unordered_map<string, int> schedMap;
-      int diffSchedCount = 0;
-    #endif
-    while (noImprovement < noImprovementMax) {
-      iterations++;
+    if(!IsFirst) {
+      for(int j = 0; j < numDiffOccupancies_; j++)
+        SchedsAtDiffOccupancies.push_back(new InstSchedule(machMdl_, dataDepGraph_, true));
+    }
+    
+    for(int j = 0; j < numDiffOccupancies_; j++) {
+      noImprovement = 0; 
+      iterations = 0; 
       iterationBest = nullptr;
-      for (int i = 0; i < numThreads_; i++) {
-        InstSchedule *schedule = FindOneSchedule(RPTarget);
+      for (int k = 0; k < pheromone_size; k++)
+          pheromone_[k] = initialValue_;
 
-        #ifdef CHECK_DIFFERENT_SCHEDULES
-          // check if schedule is in Map
-          InstCount instNum, cycleNum, slotNum;
-          // get first instruction in string
-          instNum = schedule->GetFrstInst(cycleNum, slotNum);
-          std::string schedString = std::to_string(instNum);
-          // prepare next instruction in comma separated list
-          instNum = schedule->GetNxtInst(cycleNum, slotNum);
-          while (instNum != INVALID_VALUE) {
-            schedString.append(",");
-            schedString.append(std::to_string(instNum));
-            instNum = schedule->GetNxtInst(cycleNum, slotNum);
-          }
-          schedule->ResetInstIter();
-          if (schedMap.find(schedString) == schedMap.end()) {
-            schedMap[schedString] = 1;
-            diffSchedCount++;
-          }
-          else {
-            schedMap[schedString] = schedMap[schedString] + 1;
-          }
-        #endif
+      Logger::Info("Occupancy iteration: %d", j);
+      Logger::Info("Running host ACO with %d ants per iteration", numThreads_);
+      Logger::Info("Target occupancy: %d, Num occupancies: %d", targetOccupancy_ - j, numDiffOccupancies_);
 
-        if (print_aco_trace)
-          PrintSchedule(schedule);
-        if (shouldReplaceSchedule(iterationBest, schedule, false, RPTarget, targetOccupancy_)) {
-          if (iterationBest)
-            delete iterationBest;          
-          iterationBest = schedule;
-        } else {
-            if (schedule)
-              delete schedule;
-        }
+      bestSchedule = InitialSchedule;
+
+      InstCount RPTarget;
+      if (!((BBWithSpill *)rgn_)->needsSLIL()) {
+        RPTarget = bestSchedule->GetSpillCost();
       }
-#if !USE_ACS
-      if (iterationBest)
-        UpdatePheromone(iterationBest, false);
-#endif
-      if (shouldReplaceSchedule(bestSchedule, iterationBest, true, RPTarget, targetOccupancy_)) {
-        if (bestSchedule && bestSchedule != InitialSchedule)
-          delete bestSchedule;
-        bestSchedule = std::move(iterationBest);
-        if (!((BBWithSpill *)rgn_)->needsSLIL())
-          RPTarget = bestSchedule->GetSpillCost();
+      else
+        RPTarget = MaxRPTarget;
+      #ifdef CHECK_DIFFERENT_SCHEDULES
+        std::unordered_map<string, int> schedMap;
+        int diffSchedCount = 0;
+      #endif
 
-        int globalStalls = bestSchedule->getTotalStalls();
-        if (globalStalls < GetGlobalBestStalls())
-          SetGlobalBestStalls(bestSchedule->GetCrntLngth() - dataDepGraph_->GetInstCnt());
-        printf("ACO found schedule "
-               "cost:%d, rp cost:%d, exec cost: %d, and "
+      while (noImprovement < noImprovementMax) {
+        iterations++;
+        iterationBest = nullptr;
+        for (int i = 0; i < numThreads_; i++) {
+          InstSchedule *schedule = FindOneSchedule(RPTarget, NULL);
+
+          #ifdef CHECK_DIFFERENT_SCHEDULES
+            // check if schedule is in Map
+            InstCount instNum, cycleNum, slotNum;
+            // get first instruction in string
+            instNum = schedule->GetFrstInst(cycleNum, slotNum);
+            std::string schedString = std::to_string(instNum);
+            // prepare next instruction in comma separated list
+            instNum = schedule->GetNxtInst(cycleNum, slotNum);
+            while (instNum != INVALID_VALUE) {
+              schedString.append(",");
+              schedString.append(std::to_string(instNum));
+              instNum = schedule->GetNxtInst(cycleNum, slotNum);
+            }
+            schedule->ResetInstIter();
+            if (schedMap.find(schedString) == schedMap.end()) {
+              schedMap[schedString] = 1;
+              diffSchedCount++;
+            }
+            else {
+              schedMap[schedString] = schedMap[schedString] + 1;
+            }
+          #endif
+
+          if (print_aco_trace)
+            PrintSchedule(schedule);
+          if (shouldReplaceSchedule(iterationBest, schedule, false, RPTarget, targetOccupancy_ - j)) {
+            if (iterationBest)
+              delete iterationBest;          
+            iterationBest = schedule;
+          } else {
+              if (schedule)
+                delete schedule;
+          }
+        }
+  #if !USE_ACS
+        if (iterationBest)
+          UpdatePheromone(iterationBest, false);
+  #endif
+        if (shouldReplaceSchedule(bestSchedule, iterationBest, true, RPTarget, targetOccupancy_ - j)) {
+          if (bestSchedule && bestSchedule != InitialSchedule)
+            delete bestSchedule;
+          bestSchedule = std::move(iterationBest);
+          if (!((BBWithSpill *)rgn_)->needsSLIL())
+            RPTarget = bestSchedule->GetSpillCost();
+
+          int globalStalls = bestSchedule->getTotalStalls();
+          if (globalStalls < GetGlobalBestStalls())
+            SetGlobalBestStalls(bestSchedule->GetCrntLngth() - dataDepGraph_->GetInstCnt());
+          printf("ACO found schedule "
+               "cost:%d, rp cost:%d, occ: %d, exec cost:%d, and "
                "iteration:%d"
-               " (sched length: %d, abs rp cost: %d, rplb: %d)"
-               " stalls: %d, unnecessary stalls: %d\n",
-               bestSchedule->GetCost(), bestSchedule->GetNormSpillCost(),
+               " (sched length: %d, abs rp cost:%d, rplb:%d)"
+               " stalls:%d, unnecessary stalls:%d\n",
+               bestSchedule->GetCost(), bestSchedule->GetNormSpillCost(), bestSchedule->getOccupancy(),
                bestSchedule->GetExecCost(), iterations,
                bestSchedule->GetCrntLngth(), bestSchedule->GetSpillCost(),
                rgn_->GetRPCostLwrBound(),
                bestSchedule->getTotalStalls(), bestSchedule->getUnnecessaryStalls());
-#if !RUNTIME_TESTING
-          noImprovement = 0;
-#else
-          // Disable resetting noImp to lock iterations to 10
-          noImprovement++;
-#endif
-        if (bestSchedule && ( IsFirst && (bestSchedule->GetNormSpillCost() == 0 ||
-        ((BBWithSpill *)rgn_)->ReturnPeakSpillCost() == 0) ||
-        ( !IsFirst && bestSchedule->GetExecCost() == 0 ) ) )
-          break;
-      } else {
-        delete iterationBest;
-        noImprovement++;
-      }
-#if USE_ACS
-      UpdatePheromone(bestSchedule, false);
-#endif
-    }
-    Logger::Info("%d ants terminated early", numAntsTerminated_);
-    #ifdef CHECK_DIFFERENT_SCHEDULES
-    Logger::Info("%d different schedules for %d total ants", diffSchedCount, (iterations + 1) * numThreads_ - numAntsTerminated_);
-    #endif
-    printf("Best schedule: ");
-    printf("Absolute RP Cost: %d, Length: %d, Cost: ", bestSchedule->GetSpillCost(), bestSchedule->GetCrntLngth());
-    PrintSchedule(bestSchedule);
-    schedule_out->Copy(bestSchedule);
-    if (bestSchedule != InitialSchedule)
-      delete bestSchedule;
-  } // End run on CPU
 
+  #if !RUNTIME_TESTING
+            noImprovement = 0;
+  #else
+            // Disable resetting noImp to lock iterations to 10
+            noImprovement++;
+  #endif
+          if (bestSchedule && ( IsFirst && (bestSchedule->GetNormSpillCost() == 0 ||
+          ((BBWithSpill *)rgn_)->ReturnPeakSpillCost() == 0) ||
+          ( !IsFirst && bestSchedule->GetExecCost() == 0 ) ) )
+            break;
+        } else {
+          delete iterationBest;
+          noImprovement++;
+        }
+  #if USE_ACS
+        UpdatePheromone(bestSchedule, false);
+  #endif
+      }
+      Logger::Info("%d ants terminated early", numAntsTerminated_);
+      #ifdef CHECK_DIFFERENT_SCHEDULES
+      Logger::Info("%d different schedules for %d total ants", diffSchedCount, (iterations + 1) * numThreads_ - numAntsTerminated_);
+      #endif
+      printf("Best schedule%d: ", j);
+      printf("Absolute RP Cost: %d, Length: %d, Cost: ", bestSchedule->GetSpillCost(), bestSchedule->GetCrntLngth());
+      PrintSchedule(bestSchedule);
+      Logger::Info("Occ: %d", targetOccupancy_ - j);
+
+      if (IsFirst)
+        schedule_out->Copy(bestSchedule);
+      else
+        SchedsAtDiffOccupancies[j]->Copy(bestSchedule);
+      Logger::Info("%d", SchedsAtDiffOccupancies.size());
+      if (bestSchedule != InitialSchedule)
+        delete bestSchedule;
+    } // End run on CPU
+  }
   if (!use_dev_ACO || count_ < REGION_MIN_SIZE)
     printf("ACO finished after %d iterations\n", iterations);
 

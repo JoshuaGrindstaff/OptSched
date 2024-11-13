@@ -388,6 +388,10 @@ unsigned ScheduleEvaluator::getOccAtIndex(int schedIndex) const {
   return SchedRP[schedIndex].getOccupancy(ST);
 }
 
+int ScheduleEvaluator::getSchedLength(int schedIndex) {
+  return storedSchedules[schedIndex].size();
+}
+
 int64_t ScheduleEvaluator::getILPAtIndex(int schedIndex) const {
   if (schedIndex >= storedSchedules.size()) {
     return SchedILP.back();
@@ -680,10 +684,14 @@ void ScheduleDAGOptSched::schedule() {
 
   // Build LLVM DAG
   OST->initRegion(this, MM.get(), OccupancyLimits);
+  
+
   // Convert graph
   auto DDG =
       OST->createDDGWrapper(C, this, MM.get(), LatencyPrecision, RegionName);
   
+ 
+
   // In the second pass, ignore artificial edges before running the sequential
   // heuristic list scheduler.
   if (SecondPass)
@@ -695,6 +703,9 @@ void ScheduleDAGOptSched::schedule() {
 
   auto *BDDG = static_cast<OptSchedDDGWrapperBasic *>(DDG.get());
   addGraphTransformations(BDDG);
+
+
+
 
   // Prepare for device scheduling by increasing heap size and copying machMdl
   bool dev_ACOEnabled = schedIni.GetBool("DEV_ACO");
@@ -717,6 +728,7 @@ void ScheduleDAGOptSched::schedule() {
       LowerBoundAlgorithm, HeuristicPriorities, EnumPriorities, VerifySchedule,
       PruningStrategy, SchedForRPOnly, EnumStalls, SCW, SCF, HeurSchedType,
       dev_MM, AcoPriorities1, AcoPriorities2);
+  
 
   bool IsEasy = false;
   InstCount NormBestCost = 0;
@@ -752,7 +764,7 @@ void ScheduleDAGOptSched::schedule() {
   else {
 	depth = -1;
   }
-
+  
   // Schedule region.
   Rslt = region->FindOptimalSchedule(CurrentRegionTimeout, CurrentLengthTimeout,
                                      IsEasy, NormBestCost, BestSchedLngth,
@@ -834,7 +846,6 @@ void ScheduleDAGOptSched::schedule() {
       schedIndex++;
     }
   }
-
   if (SecondPass) {
     const int64_t Threshold = 100;
     if (!SchedsAtDiffOccupancies.empty()) {
@@ -845,7 +856,7 @@ void ScheduleDAGOptSched::schedule() {
         printf(", %u", SchedEval.getOccAtIndex(i));
       }
       printf("\n");
-
+      //printf("schedEval size: %d", SchedEval.size());
       printf("ILP: %ld", SchedEval.getILPAtIndex(0));
       for (int i = 1; i < schedIndex; i++) {
         printf(", %ld", SchedEval.getILPAtIndex(i));

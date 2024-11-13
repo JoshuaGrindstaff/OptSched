@@ -785,11 +785,13 @@ FUNC_RESULT SchedRegion::FindOptimalSchedule(
     delete enumBestSched_;
   if (enumCrntSched_ != NULL)
     delete enumCrntSched_;
+  
 
   bestCost = bestCost_;
   bestSchedLngth = bestSchedLngth_;
   hurstcCost = hurstcCost_;
   hurstcSchedLngth = heuristicScheduleLength;
+  
 
   // (Chris): Experimental. Discard the schedule based on sched.ini setting.
   if (spillCostFunc_ == SCF_SLIL) {
@@ -805,6 +807,7 @@ FUNC_RESULT SchedRegion::FindOptimalSchedule(
       return rslt;
     }
   }
+
 
   // TODO: Update this to account for using heuristic scheduler and ACO.
 #if defined(IS_DEBUG_COMPARE_SLIL_BB)
@@ -1192,6 +1195,8 @@ FUNC_RESULT SchedRegion::runACO(InstSchedule *ReturnSched,
     ACOScheduler *AcoSchdulr = 
         new ACOScheduler(dataDepGraph_, machMdl_, abslutSchedUprBound_,
                          acoPrirts1_, acoPrirts2_, vrfySched_, IsPostBB, numBlocks);
+    AcoSchdulr->setNumDiffOccupancies(numDiffOccupancies);
+    AcoSchdulr->setTargetOccupancy(((BBWithSpill*)this)->getTargetOccupancy());
     AcoSchdulr->setInitialSched(InitSched);
     Rslt = AcoSchdulr->FindSchedule(ReturnSched, SchedsAtDiffOccupancies, this);
     delete AcoSchdulr;
