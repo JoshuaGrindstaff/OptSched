@@ -1107,7 +1107,10 @@ Dev_ACO(SchedRegion *dev_rgn, DataDepGraph *dev_DDG,
 
   // If in second pass and not using SLIL, set RPTarget
   if (!needsSLIL)
+  {
     RPTarget = dev_bestSched[0]->GetSpillCost();
+    printf("RPTarget start: %d\n", RPTarget);
+  }
   else
     RPTarget = INT_MAX;
 
