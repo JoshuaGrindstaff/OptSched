@@ -260,7 +260,7 @@ public:
   int getSpillCostWeight() {
     return SCW_;
   }
-  __device__
+  __host__ __device__
   InstCount getOccupancy();
   // size_t calculateMemoryNeeded() {
   //   return regTypeCnt_ * sizeof(WeightedBitVector) * numThreads * 2;

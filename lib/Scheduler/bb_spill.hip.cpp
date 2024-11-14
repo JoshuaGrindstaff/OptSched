@@ -1177,7 +1177,7 @@ InstCount BBWithSpill::CmputCostForFunction(SPILL_COST_FUNCTION SpillCF) {
   }
 }
 
-__device__
+__host__ __device__
 static unsigned getOccupancyWithNumVGPRs(unsigned VGPRs) {
   // approximation from llvm/lib/Target/AMDGPUSubtarget.cpp
   // from this llvm commit fd08dcb9db0df6dc1aaf329f790cc4a7af9e0a91
@@ -1202,7 +1202,7 @@ static unsigned getOccupancyWithNumVGPRs(unsigned VGPRs) {
   return 1;
 }
 
-__device__
+__host__ __device__
 static unsigned getOccupancyWithNumSGPRs(unsigned SGPRs) {
   // copied from llvm/lib/Target/AMDGPU/AMDGPUSubtarget.cpp
   if (SGPRs <= 80)
@@ -1214,7 +1214,7 @@ static unsigned getOccupancyWithNumSGPRs(unsigned SGPRs) {
   return 7;
 }
 
-__device__
+__host__ __device__
 static unsigned getAdjustedOccupancy(unsigned VGPRCount, unsigned SGPRCount,
                                      unsigned MaxOccLDS, bool print = false) {
   unsigned MaxOccVGPR = getOccupancyWithNumVGPRs(VGPRCount);
@@ -1247,13 +1247,18 @@ InstCount BBWithSpill::getAMDGPUCost(unsigned * PRP, unsigned TargetOccupancy,
   return Occ >= TargetOccupancy ? 0 : TargetOccupancy - Occ;
 }
 
-__device__
+__host__ __device__
 InstCount BBWithSpill::getOccupancy() {
+  #ifdef __HIP_DEVICE_COMPILE__
   unsigned *PRP = (unsigned *) dev_peakRegPressures_;
-  auto Occ =
-      getAdjustedOccupancy(PRP[OptSchedDDGWrapperGCN::VGPR32*numThreads_+GLOBALTID],
-                           PRP[OptSchedDDGWrapperGCN::SGPR32*numThreads_+GLOBALTID], MaxOccLDS_, true);
-
+  auto VGPRPressure = PRP[OptSchedDDGWrapperGCN::VGPR32 * numThreads_ + GLOBALTID];
+  auto SGPRPressure = PRP[OptSchedDDGWrapperGCN::SGPR32 * numThreads_ + GLOBALTID];
+  #else
+  unsigned *PRP = (unsigned *) peakRegPressures_;
+  auto VGPRPressure = PRP[OptSchedDDGWrapperGCN::VGPR32];
+  auto SGPRPressure = PRP[OptSchedDDGWrapperGCN::SGPR32];
+  #endif
+  auto Occ = getAdjustedOccupancy(VGPRPressure, SGPRPressure, MaxOccLDS_, true);
   return Occ;
 }
 

@@ -242,7 +242,8 @@ void ScheduleDAGOptSchedGCN::finalizeSchedule() {
         }
         printf("Choice %d, Weighted Cost: %d, occ: %d, occ cost: %d, ilp cost: %d, margin: %d\n", i, weightedCost[i], OccTracker[i], occCost, ilpCost, RegisterMarginTracker[i]);
       }
-      // printf("Min Index is: %d, occupancy is: %d\n", minIndex, OccTracker[minIndex]);
+			// minIndex = 3;
+      //printf("Min Index is: %d, occupancy is: %d\n", minIndex, OccTracker[minIndex]);
       regionNum = 0;
 
       // temp to test only use AMD Schedule
