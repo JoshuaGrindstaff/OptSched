@@ -780,6 +780,7 @@ InstSchedule *ACOScheduler::FindOneSchedule(InstCount RPTarget,
       // If an ant violates the RP cost constraint, terminate further
       // schedule construction
       if (((BBWithSpill *)dev_rgn_)->GetCrntSpillCost() > RPTarget) {
+        printf("terminating ant for under RPTarget of %d with spill cost %d in blockOccupancy %d \n", RPTarget, ((BBWithSpill *)dev_rgn_)->GetCrntSpillCost() ,blockOccupancyNum);
         // set schedule cost to INVALID_VALUE so it is not considered for
         // iteration best or global best
         schedule->SetCost(INVALID_VALUE);
@@ -787,7 +788,6 @@ InstSchedule *ACOScheduler::FindOneSchedule(InstCount RPTarget,
         atomicAdd(&numAntsTerminated_, 1);
         dev_readyLs->clearReadyList();
         // end schedule construction
-        printf("terminating ant for under RPTarget of %d", RPTarget);
         return NULL;
       } 
       DoRsrvSlots_(inst);
