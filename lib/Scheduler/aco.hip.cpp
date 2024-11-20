@@ -781,6 +781,10 @@ InstSchedule *ACOScheduler::FindOneSchedule(InstCount RPTarget,
                                             false, blockDecisions_[hipBlockIdx_x].blockOccupancyNum);
       // If an ant violates the RP cost constraint, terminate further
       // schedule construction
+      // if(blockOccupancyNum >= 1 && RPTarget > 0)
+      // {
+      //   printf("RPTarget %d blockOccupancyNum %d Spill Cost %d TID\n",RPTarget, blockOccupancyNum,((BBWithSpill *)dev_rgn_)->GetCrntSpillCost());
+      // }
       if (((BBWithSpill *)dev_rgn_)->GetCrntSpillCost() > RPTarget) {
         printf("terminating ant for under RPTarget of %d with spill cost %d in blockOccupancy %d \n", RPTarget, ((BBWithSpill *)dev_rgn_)->GetCrntSpillCost() ,blockOccupancyNum);
         // set schedule cost to INVALID_VALUE so it is not considered for
@@ -1109,7 +1113,7 @@ Dev_ACO(SchedRegion *dev_rgn, DataDepGraph *dev_DDG,
   if (!needsSLIL)
   {
     RPTarget = dev_bestSched[0]->GetSpillCost();
-    printf("RPTarget start: %d\n", RPTarget);
+    // printf("RPTarget = %d\n", dev_bestSched[0]->GetSpillCost());
   }
   else
     RPTarget = INT_MAX;

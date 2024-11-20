@@ -1244,6 +1244,8 @@ InstCount BBWithSpill::getAMDGPUCost(unsigned * PRP, unsigned TargetOccupancy,
                            PRP[OptSchedDDGWrapperGCN::SGPR32*numThreads_+GLOBALTID], MaxOccLDS);
   // RP cost is the difference between the minimum allowed occupancy for the
   // function, and the current occupancy.
+  // printf("TargetOccupany %d - Occ %d: TargetOccupacy - blockOccupancyNum = %d\n",TargetOccupancy,Occ,TargetOccupancy-blockOccupancyNum);
+  // return Occ >= (TargetOccupancy-blockOccupancyNum) ? 0 : (TargetOccupancy-blockOccupancyNum) - Occ;
   return Occ >= TargetOccupancy ? 0 : TargetOccupancy - Occ;
 }
 
