@@ -22,6 +22,7 @@ using namespace llvm;
 using namespace llvm::opt_sched;
 
 #define DEBUG_TYPE "optsched"
+// #define OCCHARDLIMT 5
 
 #ifndef NDEBUG
 static unsigned getOccupancyWeight(unsigned Occupancy) {
@@ -108,6 +109,12 @@ void OptSchedGCNTarget::initRegion(llvm::ScheduleDAGInstrs *DAG_,
     TargetOccupancy = MFI->getOccupancy();
   Logger::Info("TargetOccupancy: %d, RegionStarting: %d", TargetOccupancy, RegionStartingOccupancy);
 
+  #ifdef OCCHARDLIMT
+    // Hard Limit for Occupancy can be used to set amount of register used to set occupancy to certain value
+    MFI->setWavesPerEU(OCCHARDLIMT,OCCHARDLIMT);
+    Logger::Info("Hard Limit at: %d",OCCHARDLIMT);
+    Logger::Info("Real Limil: Min: %d Max: %d",MFI->getMinWavesPerEU(),MFI->getMaxWavesPerEU());
+  #endif
   LLVM_DEBUG(dbgs() << "Region starting occupancy is "
                     << RegionStartingOccupancy << "\n"
                     << "Target occupancy is " << TargetOccupancy << "\n");
