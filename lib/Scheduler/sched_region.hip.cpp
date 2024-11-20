@@ -236,6 +236,7 @@ FUNC_RESULT SchedRegion::FindOptimalSchedule(
 
   // TODO: Set this value based on register usage
   // int numDiffOccupancies = targOcc - initOcc;
+  // Max numDiffOccupancies without error is 8
   int numDiffOccupancies = IsSecondPass() ? 3 : 1;
 
   // Algorithm run order:

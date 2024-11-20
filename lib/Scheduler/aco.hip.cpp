@@ -1479,9 +1479,9 @@ FUNC_RESULT ACOScheduler::FindSchedule(InstSchedule *schedule_out,
 
     // // Copy over best schedule
     // // holds device copy of best sched, to be copied back to host after kernel
-    InstSchedule **dev_bestSched;
-    memSize = sizeof(InstSchedule *) * numDiffOccupancies_;
-    gpuErrchk(hipMallocManaged(&dev_bestSched, memSize));
+    // InstSchedule **dev_bestSched;
+    // memSize = sizeof(InstSchedule *) * numDiffOccupancies_;
+    // gpuErrchk(hipMallocManaged(&dev_bestSched, memSize));
 
     // InstSchedule **host_best_schedules = new InstSchedule *[numDiffOccupancies_];
     
@@ -1499,74 +1499,80 @@ FUNC_RESULT ACOScheduler::FindSchedule(InstSchedule *schedule_out,
       
     // }
 
-    InstSchedule *bestSchedule1, *bestSchedule2, *bestSchedule3, *bestSchedule4, *bestSchedule5;
-    InstSchedule *dev_bestSched0;
-    bestSchedule = new InstSchedule(machMdl_, dataDepGraph_, true);
-    bestSchedule->Copy(InitialSchedule);
-    bestSchedule->AllocateOnDevice(dev_MM_);
-    bestSchedule->CopyArraysToDevice();
-    memSize = sizeof(InstSchedule);
-    gpuErrchk(hipMalloc((void**)&dev_bestSched0, memSize));
-    gpuErrchk(hipMemcpy(dev_bestSched0, bestSchedule, memSize,
-                         hipMemcpyHostToDevice));
+    // InstSchedule *bestSchedule1, *bestSchedule2, *bestSchedule3, *bestSchedule4, *bestSchedule5;
+    // InstSchedule *dev_bestSched0;
+    // bestSchedule = new InstSchedule(machMdl_, dataDepGraph_, true);
+    // bestSchedule->Copy(InitialSchedule);
+    // bestSchedule->AllocateOnDevice(dev_MM_);
+    // bestSchedule->CopyArraysToDevice();
+    // memSize = sizeof(InstSchedule);
+    // gpuErrchk(hipMalloc((void**)&dev_bestSched0, memSize));
+    // gpuErrchk(hipMemcpy(dev_bestSched0, bestSchedule, memSize,
+    //                      hipMemcpyHostToDevice));
 
-    InstSchedule *dev_bestSched1;
-    bestSchedule1 = new InstSchedule(machMdl_, dataDepGraph_, true);
-    bestSchedule1->Copy(InitialSchedule);
-    bestSchedule1->AllocateOnDevice(dev_MM_);
-    bestSchedule1->CopyArraysToDevice();
-    memSize = sizeof(InstSchedule);
-    gpuErrchk(hipMalloc((void**)&dev_bestSched1, memSize));
-    gpuErrchk(hipMemcpy(dev_bestSched1, bestSchedule1, memSize,
-                         hipMemcpyHostToDevice));
+    // InstSchedule *dev_bestSched1;
+    // bestSchedule1 = new InstSchedule(machMdl_, dataDepGraph_, true);
+    // bestSchedule1->Copy(InitialSchedule);
+    // bestSchedule1->AllocateOnDevice(dev_MM_);
+    // bestSchedule1->CopyArraysToDevice();
+    // memSize = sizeof(InstSchedule);
+    // gpuErrchk(hipMalloc((void**)&dev_bestSched1, memSize));
+    // gpuErrchk(hipMemcpy(dev_bestSched1, bestSchedule1, memSize,
+    //                      hipMemcpyHostToDevice));
 
 
-    InstSchedule *dev_bestSched2;
-    bestSchedule2 = new InstSchedule(machMdl_, dataDepGraph_, true);
-    bestSchedule2->Copy(InitialSchedule);
-    bestSchedule2->AllocateOnDevice(dev_MM_);
-    bestSchedule2->CopyArraysToDevice();
-    memSize = sizeof(InstSchedule);
-    gpuErrchk(hipMalloc((void**)&dev_bestSched2, memSize));
-    gpuErrchk(hipMemcpy(dev_bestSched2, bestSchedule2, memSize,
-                         hipMemcpyHostToDevice));
+    // InstSchedule *dev_bestSched2;
+    // bestSchedule2 = new InstSchedule(machMdl_, dataDepGraph_, true);
+    // bestSchedule2->Copy(InitialSchedule);
+    // bestSchedule2->AllocateOnDevice(dev_MM_);
+    // bestSchedule2->CopyArraysToDevice();
+    // memSize = sizeof(InstSchedule);
+    // gpuErrchk(hipMalloc((void**)&dev_bestSched2, memSize));
+    // gpuErrchk(hipMemcpy(dev_bestSched2, bestSchedule2, memSize,
+    //                      hipMemcpyHostToDevice));
 
-    InstSchedule *dev_bestSched3;
-    bestSchedule3 = new InstSchedule(machMdl_, dataDepGraph_, true);
-    bestSchedule3->Copy(InitialSchedule);
-    bestSchedule3->AllocateOnDevice(dev_MM_);
-    bestSchedule3->CopyArraysToDevice();
-    memSize = sizeof(InstSchedule);
-    gpuErrchk(hipMalloc((void**)&dev_bestSched3, memSize));
-    gpuErrchk(hipMemcpy(dev_bestSched3, bestSchedule3, memSize,
-                         hipMemcpyHostToDevice));
+    // InstSchedule *dev_bestSched3;
+    // bestSchedule3 = new InstSchedule(machMdl_, dataDepGraph_, true);
+    // bestSchedule3->Copy(InitialSchedule);
+    // bestSchedule3->AllocateOnDevice(dev_MM_);
+    // bestSchedule3->CopyArraysToDevice();
+    // memSize = sizeof(InstSchedule);
+    // gpuErrchk(hipMalloc((void**)&dev_bestSched3, memSize));
+    // gpuErrchk(hipMemcpy(dev_bestSched3, bestSchedule3, memSize,
+    //                      hipMemcpyHostToDevice));
 
-    InstSchedule *dev_bestSched4;
-    bestSchedule4 = new InstSchedule(machMdl_, dataDepGraph_, true);
-    bestSchedule4->Copy(InitialSchedule);
-    bestSchedule4->AllocateOnDevice(dev_MM_);
-    bestSchedule4->CopyArraysToDevice();
-    memSize = sizeof(InstSchedule);
-    gpuErrchk(hipMalloc((void**)&dev_bestSched4, memSize));
-    gpuErrchk(hipMemcpy(dev_bestSched4, bestSchedule4, memSize,
-                         hipMemcpyHostToDevice));
+    // InstSchedule *dev_bestSched4;
+    // bestSchedule4 = new InstSchedule(machMdl_, dataDepGraph_, true);
+    // bestSchedule4->Copy(InitialSchedule);
+    // bestSchedule4->AllocateOnDevice(dev_MM_);
+    // bestSchedule4->CopyArraysToDevice();
+    // memSize = sizeof(InstSchedule);
+    // gpuErrchk(hipMalloc((void**)&dev_bestSched4, memSize));
+    // gpuErrchk(hipMemcpy(dev_bestSched4, bestSchedule4, memSize,
+    //                      hipMemcpyHostToDevice));
 
-    InstSchedule *dev_bestSched5;
-    bestSchedule5 = new InstSchedule(machMdl_, dataDepGraph_, true);
-    bestSchedule5->Copy(InitialSchedule);
-    bestSchedule5->AllocateOnDevice(dev_MM_);
-    bestSchedule5->CopyArraysToDevice();
-    memSize = sizeof(InstSchedule);
-    gpuErrchk(hipMalloc((void**)&dev_bestSched5, memSize));
-    gpuErrchk(hipMemcpy(dev_bestSched5, bestSchedule5, memSize,
-                         hipMemcpyHostToDevice));
+    InstSchedule** bestScheduleArray = new InstSchedule*[numDiffOccupancies_];
+    InstSchedule** dev_bestScheduleArray = new InstSchedule*[numDiffOccupancies_];
 
-    dev_bestSched[0] = dev_bestSched0;
-    dev_bestSched[1] = dev_bestSched1;
-    dev_bestSched[2] = dev_bestSched2;
-    dev_bestSched[3] = dev_bestSched3;
-    dev_bestSched[4] = dev_bestSched4;
-    dev_bestSched[5] = dev_bestSched5;
+    memSize = sizeof(InstSchedule *) * numDiffOccupancies_;
+    gpuErrchk(hipMallocManaged(&dev_bestScheduleArray, memSize));
+    for(int i = 0; i < numDiffOccupancies_; i++)
+    {
+      InstSchedule *dev_bestSchedule;
+      bestSchedule = new InstSchedule(machMdl_, dataDepGraph_, true);
+      bestSchedule->Copy(InitialSchedule);
+      bestSchedule->AllocateOnDevice(dev_MM_);
+      bestSchedule->CopyArraysToDevice();
+      memSize = sizeof(InstSchedule);
+      gpuErrchk(hipMalloc((void**)&dev_bestSchedule, memSize));
+      gpuErrchk(hipMemcpy(dev_bestSchedule, bestSchedule, memSize, hipMemcpyHostToDevice));
+      dev_bestScheduleArray[i] = dev_bestSchedule;
+      bestScheduleArray[i] = bestSchedule;
+      InstSchedule *bestSchedule;
+    }
+
+
+
 
     // Create a global mem array for device to use in parallel reduction
     int *dev_blockBestIndex;
@@ -1590,7 +1596,7 @@ FUNC_RESULT ACOScheduler::FindSchedule(InstSchedule *schedule_out,
     dArgs[1] = (void*)&dev_DDG_;
     dArgs[2] = (void*)&dev_AcoSchdulr;
     dArgs[3] = (void*)&dev_schedules;
-    dArgs[4] = (void*)&dev_bestSched;
+    dArgs[4] = (void*)&dev_bestScheduleArray;
     dArgs[5] = (void*)&noImprovementMax;
     dArgs[6] = (void*)&dev_blockBestIndex;
     gpuErrchk(hipLaunchCooperativeKernel((void*)Dev_ACO, gridDim, blockDim, 
@@ -1601,110 +1607,127 @@ FUNC_RESULT ACOScheduler::FindSchedule(InstSchedule *schedule_out,
                   hipGetErrorString(hipGetLastError()));
       // Copy dev_bestSched back to host
       memSize = sizeof(InstSchedule);
-      gpuErrchk(hipMemcpy(bestSchedule, dev_bestSched0, memSize,
+      gpuErrchk(hipMemcpy(bestScheduleArray[0], dev_bestScheduleArray[0], memSize,
                           hipMemcpyDeviceToHost));
-      bestSchedule->CopyArraysToHost();
+      bestScheduleArray[0]->CopyArraysToHost();
       // Free allocated memory that is no longer needed
-      bestSchedule->FreeDeviceArrays();
-      hipFree(dev_bestSched0);
+      bestScheduleArray[0]->FreeDeviceArrays();
+      hipFree(dev_bestScheduleArray[0]);
     } else {
       Logger::Info("Post Kernel Error: %s", 
                   hipGetErrorString(hipGetLastError()));
 
       // Copy dev_bestSched back to host
       memSize = sizeof(InstSchedule);
-      gpuErrchk(hipMemcpy(bestSchedule, dev_bestSched0, memSize,
+      gpuErrchk(hipMemcpy(bestScheduleArray[0], dev_bestScheduleArray[0], memSize,
                           hipMemcpyDeviceToHost));
-      bestSchedule->CopyArraysToHost();
+      bestScheduleArray[0]->CopyArraysToHost();
       // Free allocated memory that is no longer needed
-      bestSchedule->FreeDeviceArrays();
+      bestScheduleArray[0]->FreeDeviceArrays();
       printf("Best schedule0: ");
-      printf("Absolute RP Cost: %d, Length: %d, Cost: ", bestSchedule->GetSpillCost(), bestSchedule->GetCrntLngth());
-      PrintSchedule(bestSchedule);
-
-      SchedsAtDiffOccupancies.push_back(bestSchedule);
-      if (numDiffOccupancies_ > 1) {
-        gpuErrchk(hipMemcpy(bestSchedule1, dev_bestSched1, memSize,
-                            hipMemcpyDeviceToHost));
-        bestSchedule1->CopyArraysToHost();
+      printf("Absolute RP Cost: %d, Length: %d, Cost: ", bestScheduleArray[0]->GetSpillCost(), bestScheduleArray[0]->GetCrntLngth());
+      PrintSchedule(bestScheduleArray[0]);
+      SchedsAtDiffOccupancies.push_back(bestScheduleArray[0]);
+      for(int i = 1; i < numDiffOccupancies_; i++)
+      {
+        gpuErrchk(hipMemcpy(bestScheduleArray[i], dev_bestScheduleArray[i], memSize, hipMemcpyDeviceToHost));
+        bestScheduleArray[i]->CopyArraysToHost();
         // Free allocated memory that is no longer needed
-        bestSchedule1->FreeDeviceArrays();
+        bestScheduleArray[i]->FreeDeviceArrays();
 
-        if (bestSchedule->GetCrntLngth() < bestSchedule1->GetCrntLngth())
+        if (bestSchedule->GetCrntLngth() < bestScheduleArray[i]->GetCrntLngth())
           printf("Previous schedule is shorter\n");
-        printf("Best schedule1: ");
-        printf("Absolute RP Cost: %d, Length: %d, Cost: ", bestSchedule1->GetSpillCost(), bestSchedule1->GetCrntLngth());
-        PrintSchedule(bestSchedule1);
+        printf("Best schedule %d: ",i);
+        printf("Absolute RP Cost: %d, Length: %d, Cost: ", bestScheduleArray[i]->GetSpillCost(), bestScheduleArray[i]->GetCrntLngth());
+        PrintSchedule(bestScheduleArray[i]);
 
-        SchedsAtDiffOccupancies.push_back(bestSchedule1);
+        SchedsAtDiffOccupancies.push_back(bestScheduleArray[i]);
       }
-      if (numDiffOccupancies_ > 2) {
-        gpuErrchk(hipMemcpy(bestSchedule2, dev_bestSched2, memSize,
-                            hipMemcpyDeviceToHost));
-        bestSchedule2->CopyArraysToHost();
-        // Free allocated memory that is no longer needed
-        bestSchedule2->FreeDeviceArrays();
+      //   if (numDiffOccupancies_ > 1) {
+      //     gpuErrchk(hipMemcpy(bestSchedule1, dev_bestSched1, memSize,
+      //                         hipMemcpyDeviceToHost));
+      //     bestSchedule1->CopyArraysToHost();
+      //     // Free allocated memory that is no longer needed
+      //     bestSchedule1->FreeDeviceArrays();
 
-        if (bestSchedule1->GetCrntLngth() < bestSchedule2->GetCrntLngth())
-          printf("Previous schedule is shorter\n");
-        printf("Best schedule2: ");
-        printf("Absolute RP Cost: %d, Length: %d, Cost: ", bestSchedule2->GetSpillCost(), bestSchedule2->GetCrntLngth());
-        PrintSchedule(bestSchedule2);
+      //     if (bestSchedule->GetCrntLngth() < bestSchedule1->GetCrntLngth())
+      //       printf("Previous schedule is shorter\n");
+      //     printf("Best schedule1: ");
+      //     printf("Absolute RP Cost: %d, Length: %d, Cost: ", bestSchedule1->GetSpillCost(), bestSchedule1->GetCrntLngth());
+      //     PrintSchedule(bestSchedule1);
 
-        SchedsAtDiffOccupancies.push_back(bestSchedule2);
-      }
-      if (numDiffOccupancies_ > 3) {
-        gpuErrchk(hipMemcpy(bestSchedule3, dev_bestSched3, memSize,
-                            hipMemcpyDeviceToHost));
-        bestSchedule3->CopyArraysToHost();
-        // Free allocated memory that is no longer needed
-        bestSchedule3->FreeDeviceArrays();
+      //     SchedsAtDiffOccupancies.push_back(bestSchedule1);
+      //   }
+      //   if (numDiffOccupancies_ > 2) {
+      //     gpuErrchk(hipMemcpy(bestSchedule2, dev_bestSched2, memSize,
+      //                         hipMemcpyDeviceToHost));
+      //     bestSchedule2->CopyArraysToHost();
+      //     // Free allocated memory that is no longer needed
+      //     bestSchedule2->FreeDeviceArrays();
 
-        if (bestSchedule2->GetCrntLngth() < bestSchedule3->GetCrntLngth())
-          printf("Previous schedule is shorter\n");
-        printf("Best schedule3: ");
-        printf("Absolute RP Cost: %d, Length: %d, Cost: ", bestSchedule3->GetSpillCost(), bestSchedule3->GetCrntLngth());
-        PrintSchedule(bestSchedule3);
+      //     if (bestSchedule1->GetCrntLngth() < bestSchedule2->GetCrntLngth())
+      //       printf("Previous schedule is shorter\n");
+      //     printf("Best schedule2: ");
+      //     printf("Absolute RP Cost: %d, Length: %d, Cost: ", bestSchedule2->GetSpillCost(), bestSchedule2->GetCrntLngth());
+      //     PrintSchedule(bestSchedule2);
 
-        SchedsAtDiffOccupancies.push_back(bestSchedule3);
-      }
-      if (numDiffOccupancies_ > 4) {
-        gpuErrchk(hipMemcpy(bestSchedule4, dev_bestSched4, memSize,
-                            hipMemcpyDeviceToHost));
-        bestSchedule4->CopyArraysToHost();
-        // Free allocated memory that is no longer needed
-        bestSchedule4->FreeDeviceArrays();
+      //     SchedsAtDiffOccupancies.push_back(bestSchedule2);
+      //   }
+      //   if (numDiffOccupancies_ > 3) {
+      //     gpuErrchk(hipMemcpy(bestSchedule3, dev_bestSched3, memSize,
+      //                         hipMemcpyDeviceToHost));
+      //     bestSchedule3->CopyArraysToHost();
+      //     // Free allocated memory that is no longer needed
+      //     bestSchedule3->FreeDeviceArrays();
 
-        if (bestSchedule3->GetCrntLngth() < bestSchedule4->GetCrntLngth())
-          printf("Previous schedule is shorter\n");
-        printf("Best schedule4: ");
-        printf("Absolute RP Cost: %d, Length: %d, Cost: ", bestSchedule4->GetSpillCost(), bestSchedule4->GetCrntLngth());
-        PrintSchedule(bestSchedule4);
+      //     if (bestSchedule2->GetCrntLngth() < bestSchedule3->GetCrntLngth())
+      //       printf("Previous schedule is shorter\n");
+      //     printf("Best schedule3: ");
+      //     printf("Absolute RP Cost: %d, Length: %d, Cost: ", bestSchedule3->GetSpillCost(), bestSchedule3->GetCrntLngth());
+      //     PrintSchedule(bestSchedule3);
 
-        SchedsAtDiffOccupancies.push_back(bestSchedule4);
-      }
-      if (numDiffOccupancies_ > 5) {
-        gpuErrchk(hipMemcpy(bestSchedule5, dev_bestSched5, memSize,
-                            hipMemcpyDeviceToHost));
-        bestSchedule5->CopyArraysToHost();
-        // Free allocated memory that is no longer needed
-        bestSchedule5->FreeDeviceArrays();
+      //     SchedsAtDiffOccupancies.push_back(bestSchedule3);
+      //   }
+      //   if (numDiffOccupancies_ > 4) {
+      //     gpuErrchk(hipMemcpy(bestSchedule4, dev_bestSched4, memSize,
+      //                         hipMemcpyDeviceToHost));
+      //     bestSchedule4->CopyArraysToHost();
+      //     // Free allocated memory that is no longer needed
+      //     bestSchedule4->FreeDeviceArrays();
 
-        if (bestSchedule3->GetCrntLngth() < bestSchedule5->GetCrntLngth())
-          printf("Previous schedule is shorter\n");
-        printf("Best schedule5: ");
-        printf("Absolute RP Cost: %d, Length: %d, Cost: ", bestSchedule5->GetSpillCost(), bestSchedule5->GetCrntLngth());
-        PrintSchedule(bestSchedule5);
+      //     if (bestSchedule3->GetCrntLngth() < bestSchedule4->GetCrntLngth())
+      //       printf("Previous schedule is shorter\n");
+      //     printf("Best schedule4: ");
+      //     printf("Absolute RP Cost: %d, Length: %d, Cost: ", bestSchedule4->GetSpillCost(), bestSchedule4->GetCrntLngth());
+      //     PrintSchedule(bestSchedule4);
 
-        SchedsAtDiffOccupancies.push_back(bestSchedule5);
-      }
+      //     SchedsAtDiffOccupancies.push_back(bestSchedule4);
+      //   }
+      //   if (numDiffOccupancies_ > 5) {
+      //     gpuErrchk(hipMemcpy(bestSchedule5, dev_bestSched5, memSize,
+      //                         hipMemcpyDeviceToHost));
+      //     bestSchedule5->CopyArraysToHost();
+      //     // Free allocated memory that is no longer needed
+      //     bestSchedule5->FreeDeviceArrays();
+
+      //     if (bestSchedule3->GetCrntLngth() < bestSchedule5->GetCrntLngth())
+      //       printf("Previous schedule is shorter\n");
+      //     printf("Best schedule5: ");
+      //     printf("Absolute RP Cost: %d, Length: %d, Cost: ", bestSchedule5->GetSpillCost(), bestSchedule5->GetCrntLngth());
+      //     PrintSchedule(bestSchedule5);
+
+      //     SchedsAtDiffOccupancies.push_back(bestSchedule5);
+      //   }
     }
-    hipFree(dev_bestSched0);
-    hipFree(dev_bestSched1);
-    hipFree(dev_bestSched2);
-    hipFree(dev_bestSched3);
-    hipFree(dev_bestSched4);
-    hipFree(dev_bestSched);
+    for(int i = 1; i < numDiffOccupancies_; i++){
+      hipFree(dev_bestScheduleArray[i]);
+    }
+    // hipFree(dev_bestSched0);
+    // hipFree(dev_bestSched1);
+    // hipFree(dev_bestSched2);
+    // hipFree(dev_bestSched3);
+    // hipFree(dev_bestSched4);
+    hipFree(dev_bestScheduleArray);
     for (int i = 0; i < numThreads_; i++) {
       delete host_schedules[i];
     }
