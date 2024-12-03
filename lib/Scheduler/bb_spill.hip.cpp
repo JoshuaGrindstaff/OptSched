@@ -22,6 +22,7 @@
 #include <utility>
 #include <hip/hip_runtime.h>
 
+// #define IS_DEBUG_REG_PRESSURE 1
 extern bool OPTSCHED_gPrintSpills; 
 
 using namespace llvm::opt_sched;
@@ -1245,8 +1246,8 @@ InstCount BBWithSpill::getAMDGPUCost(unsigned * PRP, unsigned TargetOccupancy,
   // RP cost is the difference between the minimum allowed occupancy for the
   // function, and the current occupancy.
   // printf("TargetOccupany %d - Occ %d: TargetOccupacy - blockOccupancyNum = %d\n",TargetOccupancy,Occ,TargetOccupancy-blockOccupancyNum);
-  // return Occ >= (TargetOccupancy-blockOccupancyNum) ? 0 : (TargetOccupancy-blockOccupancyNum) - Occ;
-  return Occ >= TargetOccupancy ? 0 : TargetOccupancy - Occ;
+  return Occ >= (TargetOccupancy-blockOccupancyNum) ? 0 : (TargetOccupancy-blockOccupancyNum) - Occ;
+//   return Occ >= TargetOccupancy ? 0 : TargetOccupancy - Occ;
 }
 
 __host__ __device__

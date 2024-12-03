@@ -237,7 +237,7 @@ FUNC_RESULT SchedRegion::FindOptimalSchedule(
   // TODO: Set this value based on register usage
   // int numDiffOccupancies = targOcc - initOcc;
   // Max numDiffOccupancies without error is 8
-  int numDiffOccupancies = IsSecondPass() ? 3 : 1;
+  // int numDiffOccupancies = IsSecondPass() ? 3 : 1;
 
   // Algorithm run order:
   // 1) Heuristic Scheduler
@@ -553,7 +553,7 @@ FUNC_RESULT SchedRegion::FindOptimalSchedule(
     bestCost_ = hurstcCost_;
   }
   // calculate the level of occpancies considered based on lowerbound
-  // int numDiffOccupancies = IsSecondPass() ? occLevelChoice(lstSched->GetCrntLngth()-schedLwrBound_) : 1;
+  int numDiffOccupancies = IsSecondPass() ? occLevelChoice(lstSched->GetCrntLngth()-schedLwrBound_) : 1;
   // if  (IsSecondPass())
   // {
   //   Logger::Info("2nd pass starting ILP - schedLwrBound \n %d - %d = %d", lstSched->GetCrntLngth(), schedLwrBound_, lstSched->GetCrntLngth()-schedLwrBound_);

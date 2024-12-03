@@ -1086,6 +1086,7 @@ Dev_ACO(SchedRegion *dev_rgn, DataDepGraph *dev_DDG,
   #endif
   int numDiffOccupancies = dev_AcoSchdulr->GetNumDiffOccupancies();
   int targetOccupancy = dev_AcoSchdulr->GetTargetOccupancy();
+  // printf("numDiffOccupancies = %d, targetOccupancy = %d",numDiffOccupancies, targetOccupancy);
   // update blockBestIndex pointer to point to specific kernel number's allocation
   int *blockBestIndex = blockBestIndexStart;
   // holds cost and index of bestSched per block
