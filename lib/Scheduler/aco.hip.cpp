@@ -102,7 +102,7 @@ ACOScheduler::ACOScheduler(DataDepGraph *dataDepGraph,
   */
 
   #ifdef MULTIPLE_PHEROMONE_TABLES
-  int pheromone_size = (count_ + 1) * count_ * 3;
+  int pheromone_size = (count_ + 1) * count_ * numDiffOccupancies_;
   #else
   int pheromone_size = (count_ + 1) * count_;
   #endif
@@ -619,7 +619,7 @@ InstSchedule *ACOScheduler::FindOneSchedule(InstCount RPTarget,
   dev_readyLs->clearReadyList();
   ScRelMax = dev_rgn_->GetHeuristicCost();
   bool unnecessarilyStalling = false;
-
+  
   // The MaxPriority that we are getting from the ready list represents
   // the maximum possible heuristic/key value that we can have
   HeurType MaxPriority = 1;
@@ -785,8 +785,8 @@ InstSchedule *ACOScheduler::FindOneSchedule(InstCount RPTarget,
       // {
       //   printf("RPTarget %d blockOccupancyNum %d Spill Cost %d TID\n",RPTarget, blockOccupancyNum,((BBWithSpill *)dev_rgn_)->GetCrntSpillCost());
       // }
-      if (((BBWithSpill *)dev_rgn_)->GetCrntSpillCost() > RPTarget) {
-        printf("terminating ant for under RPTarget of %d with spill cost %d in blockOccupancy %d \n", RPTarget, ((BBWithSpill *)dev_rgn_)->GetCrntSpillCost() ,blockOccupancyNum);
+      if (((BBWithSpill *)dev_rgn_)->GetCrntSpillCost() > (RPTarget + (GetNumDiffOccupancies() - 1))) {
+        printf("terminating ant for under RPTarget of %d with spill cost %d in numofDiffOCC %d \n", RPTarget, ((BBWithSpill *)dev_rgn_)->GetCrntSpillCost() ,GetNumDiffOccupancies());
         // set schedule cost to INVALID_VALUE so it is not considered for
         // iteration best or global best
         schedule->SetCost(INVALID_VALUE);
@@ -955,7 +955,7 @@ InstSchedule *ACOScheduler::FindOneSchedule(InstCount RPTarget,
       rgn_->SchdulInst(inst, crntCycleNum_, crntSlotNum_, false);
       // If an ant violates the RP cost constraint, terminate further
       // schedule construction
-      if (((BBWithSpill*)rgn_)->GetCrntSpillCost() > RPTarget) {
+      if (((BBWithSpill*)rgn_)->GetCrntSpillCost() > (RPTarget + (GetNumDiffOccupancies() - 1))) {
         // end schedule construction
         // keep track of ants terminated
         numAntsTerminated_++;
