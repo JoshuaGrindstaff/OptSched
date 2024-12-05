@@ -182,17 +182,17 @@ int occLevelChoice(int lengthFromOptimal)
 {
   if (lengthFromOptimal > 30)
   {
-    printf("OccLevel choosen: 3");
+    printf("OccLevel choosen: 3\n");
     return 3;
   }
   else if (lengthFromOptimal > 10)
   {
-    printf("OccLevel choosen: 2");
+    printf("OccLevel choosen: 2\n");
     return 2;
   }
   {
     // Enable Early Stopping Heuristics
-    printf("OccLevel choosen: 1");
+    printf("OccLevel choosen: 1\n");
     return 1;
   }
 }

@@ -36,7 +36,7 @@ double RandDouble(double min, double max) {
 #define MAX_DEPOSITION 6
 #define MAX_DEPOSITION_MINUS_MIN (MAX_DEPOSITION - MIN_DEPOSITION)
 #define ACO_SCHED_STALLS 1
-#define MULTIPLE_PHEROMONE_TABLES 0
+#define MULTIPLE_PHEROMONE_TABLES 1
 // #define CHECK_DIFFERENT_SCHEDULES 1
 // #define DEBUG_DIFFERENT_OCCUPANCIES 1
 
@@ -102,7 +102,7 @@ ACOScheduler::ACOScheduler(DataDepGraph *dataDepGraph,
   */
 
   #ifdef MULTIPLE_PHEROMONE_TABLES
-  int pheromone_size = (count_ + 1) * count_ * 3;
+  int pheromone_size = (count_ + 1) * count_ * numDiffOccupancies_;
   #else
   int pheromone_size = (count_ + 1) * count_;
   #endif
