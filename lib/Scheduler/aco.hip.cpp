@@ -36,7 +36,7 @@ double RandDouble(double min, double max) {
 #define MAX_DEPOSITION 6
 #define MAX_DEPOSITION_MINUS_MIN (MAX_DEPOSITION - MIN_DEPOSITION)
 #define ACO_SCHED_STALLS 1
-#define MULTIPLE_PHEROMONE_TABLES 0
+#define MULTIPLE_PHEROMONE_TABLES 1
 // #define CHECK_DIFFERENT_SCHEDULES 1
 // #define DEBUG_DIFFERENT_OCCUPANCIES 1
 
@@ -607,9 +607,9 @@ InstCount ACOScheduler::SelectInstruction(SchedInstruction *lastInst, InstCount 
 }
 
 __host__ __device__
-InstSchedule *ACOScheduler::FindOneSchedule(InstCount RPTarget, 
-                                            InstSchedule *dev_schedule, int blockOccupancyNum) {
-#ifdef __HIP_DEVICE_COMPILE__ // device version of function
+InstSchedule *ACOScheduler::FindOneSchedule(InstCount RPTarget, InstSchedule *dev_schedule, int blockOccupancyNum) {
+// **** device version of function ****
+#ifdef __HIP_DEVICE_COMPILE__
   SchedInstruction *inst = NULL;
   SchedInstruction *lastInst = NULL;
   ACOReadyListEntry LastInstInfo;
@@ -786,7 +786,7 @@ InstSchedule *ACOScheduler::FindOneSchedule(InstCount RPTarget,
       //   printf("RPTarget %d blockOccupancyNum %d Spill Cost %d TID\n",RPTarget, blockOccupancyNum,((BBWithSpill *)dev_rgn_)->GetCrntSpillCost());
       // }
       if (((BBWithSpill *)dev_rgn_)->GetCrntSpillCost() > (RPTarget + (GetNumDiffOccupancies() - 1))) {
-        printf("terminating ant for under RPTarget of %d with spill cost %d in numofDiffOCC %d \n", RPTarget, ((BBWithSpill *)dev_rgn_)->GetCrntSpillCost() ,GetNumDiffOccupancies());
+        // printf("terminating ant for under RPTarget of %d with spill cost %d in numofDiffOCC %d \n", RPTarget, ((BBWithSpill *)dev_rgn_)->GetCrntSpillCost() ,GetNumDiffOccupancies());
         // set schedule cost to INVALID_VALUE so it is not considered for
         // iteration best or global best
         schedule->SetCost(INVALID_VALUE);
@@ -955,7 +955,7 @@ InstSchedule *ACOScheduler::FindOneSchedule(InstCount RPTarget,
       rgn_->SchdulInst(inst, crntCycleNum_, crntSlotNum_, false);
       // If an ant violates the RP cost constraint, terminate further
       // schedule construction
-      if (((BBWithSpill*)rgn_)->GetCrntSpillCost() > (RPTarget + (GetNumDiffOccupancies() - 1))) {
+      if (((BBWithSpill*)rgn_)->GetCrntSpillCost() > RPTarget) {
         // end schedule construction
         // keep track of ants terminated
         numAntsTerminated_++;
